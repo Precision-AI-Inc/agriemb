@@ -1,0 +1,5 @@
+# Documentation build: Sphinx + LaTeX → PDF
+sphinx
+sphinx-rtd-theme
+myst-parser
+sphinx-autodoc-typehints

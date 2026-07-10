@@ -1,0 +1,11 @@
+include LICENSE.md
+include README.md
+include CHANGELOG.md
+include SECURITY.md
+include requirements.txt
+include requirements-dev.txt
+recursive-include precisionai *.py
+prune tests
+prune examples
+prune docs
+prune .github

@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/Precision-AI-Inc/pai-myproject/blob/main/SECURITY.md
+    about: Please report security vulnerabilities privately — do not open a public issue.

@@ -1,0 +1,12 @@
+# Normalize line endings to LF on commit, regardless of editor/OS settings.
+* text=auto eol=lf
+
+# Treat binary files as binary (no line-ending conversion).
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.JPG binary
+*.JPEG binary
+*.svg binary
+*.pdf binary
+*.ipynb text eol=lf

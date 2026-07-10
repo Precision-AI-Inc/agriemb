@@ -1,0 +1,19 @@
+name: CI
+# Repository: https://github.com/Precision-AI-Inc/agri-template
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  unit-tests:
+    uses: ./.github/workflows/unit-test.yml
+
+  pre-commit:
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/pre-commit.yml

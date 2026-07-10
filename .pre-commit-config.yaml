@@ -1,0 +1,47 @@
+repos:
+  # ── File hygiene ────────────────────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+        args: ["--maxkb=1800"]
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: end-of-file-fixer
+        exclude: ^\.github/badges/
+      - id: trailing-whitespace
+        exclude: ^\.github/badges/
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: debug-statements
+      - id: fix-byte-order-marker
+
+  # ── Ruff: lint + format + import sorting ───────────────────────────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.17
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+      - id: ruff-format
+
+  # ── Type checking (pyright / pylance engine) ────────────────────────────────
+  - repo: local
+    hooks:
+      - id: pyright
+        name: pyright
+        entry: python -m pyright
+        language: system
+        types: [python]
+        pass_filenames: false
+
+  # ── Tests + coverage (≥ 90%) ────────────────────────────────────────────────
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest (coverage ≥ 90%)
+        entry: python -m pytest
+        language: system
+        args: ["tests/", "-q", "--tb=short", "--no-header"]
+        pass_filenames: false
+        always_run: true

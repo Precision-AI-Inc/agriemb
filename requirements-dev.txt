@@ -1,0 +1,19 @@
+# Full development install — includes testing, type checking, and pre-commit tooling.
+# Usage: pip install -r requirements-dev.txt
+# Or:    pip install -e ".[dev]"
+
+-r requirements.txt
+
+# Testing
+pytest>=7.0
+pytest-cov>=5.0
+httpx>=0.28
+
+# Pre-commit
+pre-commit>=3.7
+
+# Type checking
+pyright>=1.1
+
+# Coverage badge generation
+genbadge[coverage]>=1.1
