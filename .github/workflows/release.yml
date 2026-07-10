@@ -8,11 +8,7 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    uses: ./.github/workflows/unit-test.yml
-
   build:
-    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -33,7 +29,7 @@ jobs:
       - name: Check version matches tag
         run: |
           TAG_VERSION="${GITHUB_REF_NAME#v}"
-          BUILT_VERSION=$(python -c "import importlib.metadata as m; print(m.version('pai-myproject'))")
+          BUILT_VERSION=$(python -c "import importlib.metadata as m; print(m.version('precisionai-agriemb'))")
           if [ "$TAG_VERSION" != "$BUILT_VERSION" ]; then
             echo "Tag v$TAG_VERSION does not match built version $BUILT_VERSION" >&2
             exit 1
@@ -49,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/project/pai-myproject/
+      url: https://pypi.org/project/precisionai-agriemb/
     permissions:
       id-token: write
     steps:

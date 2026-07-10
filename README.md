@@ -1,51 +1,29 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Precision-AI-Inc/agri-template/main/docs/assets/logo.png" alt="Precision AI Logo" width="120"/>
+  <img src="https://raw.githubusercontent.com/Precision-AI-Inc/agriemb/main/docs/assets/logo.png" alt="Precision AI Logo" width="120"/>
 </p>
 
-# PAI Agricultural Project Template
+# PAI AgriEmb
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE.md)
-[![PyPI](https://img.shields.io/pypi/v/pai-myproject.svg?include_prereleases)](https://pypi.org/project/pai-myproject/)
-[![Python](https://img.shields.io/pypi/pyversions/pai-myproject.svg?include_prereleases)](https://pypi.org/project/pai-myproject/)
+[![PyPI](https://img.shields.io/pypi/v/precisionai-agriemb.svg?include_prereleases)](https://pypi.org/project/precisionai-agriemb/)
+[![Python](https://img.shields.io/pypi/pyversions/precisionai-agriemb.svg?include_prereleases)](https://pypi.org/project/precisionai-agriemb/)
 
 ---
 
-> **Template repository.** Replace every occurrence of `myproject` / `pai-myproject` / `PAI MyProject` with your actual project name, and update the badge/logo URLs above to point to your repository on GitHub. Leave the `precisionai` top-level namespace as-is.
+Examples connecting parts of the Precision AI embedding public release: download the
+AgriStress-500 dataset, sample a cluster, generate image embeddings through the hosted
+PAI embedding API, and evaluate them with Image→Image retrieval metrics.
 
-This repository is the canonical starting point for new Precision AI Python projects. It ships with:
+This repo unifies three sibling projects into one pipeline:
 
-- A working `precisionai/myproject/` package demonstrating the full layer stack: metrics → services → schemas → API (FastAPI included as one example; remove or replace it for non-API projects)
-- **Pre-commit hooks** that enforce ruff lint/format, pyright type checking, and ≥ 90% test coverage on every commit
-- **GitHub Actions** CI/CD — pre-commit + test matrix on every PR, PyPI + GitHub Release publishing on tag push
-- **Sphinx** documentation scaffolding (HTML + LaTeX/PDF)
-- A standalone **example script** and a complete **test suite** to validate the template is functional out of the box
+| Project | Role | Package |
+|---|---|---|
+| [`agristress-utils`](https://github.com/Precision-AI-Inc/agristress-utils) | Dataset download, cluster enumeration, and payload assembly | `precisionai-agristress-utils` |
+| [Precision AI Embeddings](https://embeddings.precision.ai/) | Hosted image embedding API (OpenAI SDK-compatible) | consumed via the `openai` SDK |
+| [`agrieval`](https://github.com/Precision-AI-Inc/agrieval) | Embedding evaluation (retrieval metrics) | `precisionai-agrieval` |
 
-Coding standards, naming conventions, and tooling configuration are governed by [CLAUDE.md](CLAUDE.md). All new code in any PAI project must conform to those standards.
-
----
-
-## Quickstart — rename the template
-
-Global find-and-replace in this order (`myproject` last to avoid partial matches):
-
-| Find | Replace with |
-|---|---|
-| `agri-template` | your GitHub repository name |
-| `pai-myproject` | your distribution name (kebab-case, e.g. `pai-ag-emb`) |
-| `PAI MyProject` | your human-readable project name |
-| `myproject` | your project namespace (snake_case, e.g. `ag_emb`) |
-
-The `precisionai` top-level package is fixed across all PAI Python projects — do not rename it.
-
-Then:
-
-1. Update `pyproject.toml` `description` and `dependencies` for your domain.
-2. Replace `precisionai/myproject/` business logic with your domain logic.
-3. Update `docs/conf.py` header string and `docs/index.rst` / `docs/modules.rst` autodoc references.
-4. Update `CHANGELOG.md` with your first release notes.
-5. Remove the **Using this template** section from `CLAUDE.md`.
-
-See [CLAUDE.md](CLAUDE.md) for the full step-by-step template setup guide.
+Coding standards, naming conventions, and tooling configuration are governed by
+[CLAUDE.md](CLAUDE.md).
 
 ---
 
@@ -53,93 +31,98 @@ See [CLAUDE.md](CLAUDE.md) for the full step-by-step template setup guide.
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
 
 # Runtime only
 pip install -r requirements.txt
 
-# Full development (tests, pre-commit, type checking)
+# Full development (pre-commit, type checking)
 pip install -e ".[dev]"
 pre-commit install
+
+# To also run the Jupyter notebook and visualizations
+pip install -e ".[notebook]"
 ```
 
 ---
 
-## Running the API server
+## Configuration
+
+Copy `.env.example` to `.env` and fill in your PAI embedding API credentials:
 
 ```bash
-# Default: host 0.0.0.0, port 8000
-pai-myproject
-
-# Or explicitly
-python -m precisionai.myproject.api.app --host 0.0.0.0 --port 8000 --no-reload
-
-# Interactive docs
-open http://localhost:8000/docs
+cp .env.example .env
 ```
 
-### `POST /v1/hello`
+| Variable | Description |
+|---|---|
+| `PAI_EMBEDDINGS_BASE_URL` | Base URL of the PAI embedding API, ending in `/v1` — defaults to the hosted service at [embeddings.precision.ai](https://embeddings.precision.ai/) |
+| `PAI_EMBEDDINGS_API_KEY` | An `sk-pai-` key minted at `<base-url>/keys` (or the Portal's Starter key) |
 
-```json
-{
-  "name": "Precision AI",
-  "shout": false
-}
-```
-
-Response:
-
-```json
-{
-  "greeting": "Hello, Precision AI!",
-  "word_count": 3,
-  "char_count": 20
-}
-```
+`.env` is gitignored — never commit real keys.
 
 ---
 
-## Python SDK usage
+## The `precisionai.agriemb` package
+
+The pipeline logic lives in `precisionai/agriemb/`, not just in the example scripts, so
+it's reusable from your own code:
 
 ```python
-from precisionai.myproject.services.hello import say_hello, describe
-from precisionai.myproject.metrics.compute import word_count, char_count
+from precisionai.agriemb import build_client, download, embed_images, run_i2i_evaluation, sample_cluster
+from precisionai.agristress.utils import AgriStressDataset, normalize_embeddings, validate_embeddings
 
-# Call the service layer directly (no HTTP)
-greeting = say_hello("Precision AI")
-print(greeting)                  # Hello, Precision AI!
+dataset_dir = download("data/agristress")
+dataset = AgriStressDataset(dataset_dir)
 
-result = describe("Precision AI", shout=True)
-print(result["greeting"])        # HELLO, PRECISION AI!
-print(result["word_count"])      # 3
-print(result["char_count"])      # 21
+cluster, image_ids = sample_cluster(dataset, num_samples=8)
+paths = dataset.resolve_paths(image_ids)
+
+client = build_client()
+embeddings = normalize_embeddings(embed_images(client, paths))
+validate_embeddings(embeddings)
+
+result = run_i2i_evaluation(dataset, embeddings, k_values=[5, 10])
 ```
+
+| Module | Contents |
+|---|---|
+| `precisionai.agriemb.config` | Environment-driven defaults (`PAI_EMBEDDINGS_API_KEY`/`_BASE_URL`, dataset dir, model id, batch size) |
+| `precisionai.agriemb.dataset` | `download()` and `sample_cluster()` built on `agristress-utils` |
+| `precisionai.agriemb.embeddings` | `build_client()`, `image_to_data_uri()`, `embed_images()` for the PAI embedding API |
+| `precisionai.agriemb.evaluate` | `run_i2i_evaluation()` — wires `AgriStressDataset.build_i2i_payload` into `agrieval`'s `run_image2image_eval` |
 
 ---
 
-## Standalone example script
+## Examples
+
+Run in order from the repo root — each stage writes a JSON artifact under `data/` that
+the next stage reads:
 
 ```bash
-python examples/example.py
-python examples/example.py --name "Precision AI" --shout
+python examples/01_download_dataset.py        # -> data/agristress/
+python examples/02_sample_cluster.py           # -> data/sample_manifest.json
+python examples/03_generate_embeddings.py      # -> data/embeddings.json
+python examples/04_run_image2image_eval.py     # -> data/image2image_result.json
 ```
 
----
-
-## Testing
+Or run the whole pipeline in one process (no intermediate files):
 
 ```bash
-# Run all tests with coverage report
-python -m pytest
-
-# Run a specific module
-pytest tests/test_hello.py
-
-# Run tests matching a keyword
-pytest -k "shout"
+python examples/05_end_to_end.py
+python examples/05_end_to_end.py --cluster A1 --num-samples 12
 ```
 
-Coverage must remain at or above **90%** — enforced by pytest and the pre-commit hook.
+Each script accepts `--help` for its full option list (cluster choice, sample size,
+k-values, output paths, etc.).
+
+A notebook version with inline image previews and interactive Plotly visualizations is
+at [`examples/end_to_end.ipynb`](examples/end_to_end.ipynb) (requires
+`pip install -e ".[notebook]"`):
+
+```bash
+jupyter notebook examples/end_to_end.ipynb
+```
 
 ---
 
@@ -151,7 +134,6 @@ Coverage must remain at or above **90%** — enforced by pytest and the pre-comm
 | `ruff` | Linting and import sorting (auto-fix) |
 | `ruff-format` | Code formatting (auto-fix) |
 | `pyright` | Static type checking |
-| `pytest` | Full test suite with ≥ 90% coverage |
 
 Run all hooks manually without committing:
 
@@ -164,21 +146,17 @@ pre-commit run --all-files
 ## Project layout
 
 ```
-precisionai/myproject/
-  api/
-    routes/         # FastAPI route handlers (thin — delegate to services)
-    config.py       # Environment-variable configuration only
-    app.py          # FastAPI app factory + CLI entry point
-  schemas/          # Pydantic v2 request/response models
-  services/         # Business logic
-  metrics/          # Pure computation modules (no I/O)
-    __init__.py     # Re-exports only — no logic
-docs/               # Sphinx (HTML + LaTeX/PDF)
-tests/              # Mirrors package structure
-examples/           # Standalone runnable scripts
+precisionai/agriemb/
+  config.py         # Environment-driven configuration
+  dataset.py         # Dataset download + cluster sampling (agristress-utils)
+  embeddings.py       # PAI embedding API client + batch embedding
+  evaluate.py         # Image2Image evaluation (agrieval)
+docs/                # Sphinx (HTML + LaTeX/PDF)
+examples/            # Standalone runnable scripts + notebook
 ```
 
-See [CLAUDE.md](CLAUDE.md) for the full coding standard covering imports, docstrings, type hints, testing, and what to avoid.
+See [CLAUDE.md](CLAUDE.md) for the full coding standard covering imports, docstrings,
+type hints, and what to avoid.
 
 ---
 
@@ -195,19 +173,9 @@ Dependencies: `pip install -r docs/requirements.txt`
 
 ---
 
-## Environment variables
-
-| Variable | Default | Description |
-|---|---|---|
-| `PAI_APP_ENV` | `development` | Application environment (`development`, `staging`, `production`) |
-
-Add project-specific variables to `precisionai/myproject/api/config.py` following the same pattern.
-
----
-
 ## Releasing
 
-Push a tag matching `v*.*.*` (e.g. `v0.1.0`) to trigger `.github/workflows/release.yml`, which runs the test suite, builds the sdist/wheel, publishes to PyPI via trusted publishing, and creates a GitHub Release. The package version is derived from the git tag via `setuptools-scm` — update `CHANGELOG.md` before tagging.
+Push a tag matching `v*.*.*` (e.g. `v0.1.0`) to trigger `.github/workflows/release.yml`, which builds the sdist/wheel, publishes to PyPI via trusted publishing, and creates a GitHub Release. The package version is derived from the git tag via `setuptools-scm` — update `CHANGELOG.md` before tagging.
 
 ---
 

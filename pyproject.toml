@@ -1,16 +1,11 @@
-# ── Project identity ──────────────────────────────────────────────────────────
-# Replace every occurrence of "myproject" / "pai-myproject" / "PAI MyProject"
-# with your actual project name before shipping. Leave the "precisionai" top-level
-# namespace as-is — it is fixed across all PAI Python projects.
-
 [build-system]
 requires = ["setuptools>=61", "wheel", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pai-myproject"
+name = "precisionai-agriemb"
 dynamic = ["version"]
-description = "Precision AI — <short project description>"
+description = "Examples connecting parts of the Precision AI embedding public release — dataset, embeddings API, and evaluation."
 readme = "README.md"
 license = { file = "LICENSE.md" }
 authors = [{ name = "Precision AI", email = "michael@precision.ai" }]
@@ -19,6 +14,7 @@ requires-python = ">=3.10"
 keywords = [
     "agriculture",
     "computer-vision",
+    "embeddings",
     "machine-learning",
 ]
 classifiers = [
@@ -35,35 +31,27 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "fastapi>=0.111",
-    "uvicorn[standard]>=0.29",
-    "pydantic>=2.0",
+    "precisionai-agristress-utils>=1.0",
+    "precisionai-agrieval>=1.0",
+    "openai>=1.0",
+    "python-dotenv>=1.0",
 ]
 
 [project.optional-dependencies]
-test = [
-    "pytest>=7.0",
-    "pytest-cov>=5.0",
-    "httpx>=0.28",
+notebook = [
+    "precisionai-agrieval[analysis]>=1.0",
+    "jupyter>=1.0",
 ]
 dev = [
-    "pytest>=7.0",
-    "pytest-cov>=5.0",
-    "httpx>=0.28",
     "pre-commit>=3.7",
     "pyright>=1.1",
-    "genbadge[coverage]>=1.1",
 ]
 
-[project.scripts]
-# Rename the CLI entry point to match your project.
-pai-myproject = "precisionai.myproject.api.app:main"
-
 [project.urls]
-Homepage = "https://github.com/Precision-AI-Inc/pai-myproject"
-Repository = "https://github.com/Precision-AI-Inc/pai-myproject"
-Issues = "https://github.com/Precision-AI-Inc/pai-myproject/issues"
-Changelog = "https://github.com/Precision-AI-Inc/pai-myproject/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/Precision-AI-Inc/agriemb"
+Repository = "https://github.com/Precision-AI-Inc/agriemb"
+Issues = "https://github.com/Precision-AI-Inc/agriemb/issues"
+Changelog = "https://github.com/Precision-AI-Inc/agriemb/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -73,31 +61,6 @@ include = ["precisionai*"]
 version_scheme = "no-guess-dev"
 local_scheme = "no-local-version"
 fallback_version = "0.0.0"
-
-# ── pytest ────────────────────────────────────────────────────────────────────
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = ["test_*.py"]
-python_functions = ["test_*"]
-addopts = "--cov=precisionai --cov-report=term-missing --cov-fail-under=90"
-markers = [
-    "integration: marks tests that require external resources (deselect with '-m \"not integration\"')",
-]
-
-[tool.coverage.run]
-source = ["precisionai"]
-omit = ["*/tests/*", "*/__init__.py"]
-relative_files = true
-
-[tool.coverage.report]
-fail_under = 90
-show_missing = true
-exclude_lines = [
-    "pragma: no cover",
-    "if __name__ == .__main__.:",
-    "raise ImportError",
-    "except ImportError",
-]
 
 # ── pyright ───────────────────────────────────────────────────────────────────
 [tool.pyright]
@@ -132,7 +95,6 @@ select = [
 ]
 ignore = [
     "E501",    # line too long — enforced by ruff-format at 120 chars
-    "B008",    # function calls in default args (FastAPI uses this pattern)
     "SIM108",  # ternary operator — sometimes less readable
     "D100",    # missing docstring in public module
     "D104",    # missing docstring in public package
@@ -142,12 +104,10 @@ ignore = [
     "PLR2004", # magic value comparisons — acceptable in tests/metrics
     "ANN401",  # typing.Any is allowed for genuinely dynamic types
     "S311",    # pseudo-random generators are intentional in scientific code
-    "S104",    # binding to 0.0.0.0 is intentional for a configurable server host
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "**/__init__.py" = ["F401"]
-"tests/**"       = ["D", "PLR", "ANN", "S"]
 "docs/conf.py"   = ["E402", "UP031", "ANN", "S"]
 
 [tool.ruff.lint.pydocstyle]

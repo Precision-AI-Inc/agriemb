@@ -1,10 +1,10 @@
-PAI MyProject
-=============
+PAI AgriEmb
+===========
 
-Welcome to the **PAI MyProject** documentation.
+Welcome to the **PAI AgriEmb** documentation.
 
-- The **Getting started** chapter is the project README: installation, API usage, and example scripts.
-- The **Module Reference** chapter documents the full ``precisionai.myproject`` API — metrics, services, schemas, and routes.
+- The **Getting started** chapter is the project README: installation, configuration, package usage, and example scripts.
+- The **Module Reference** chapter documents the full ``precisionai.agriemb`` API — dataset, embeddings, and evaluation.
 
 Contents
 --------

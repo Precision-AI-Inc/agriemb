@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-Security fixes are provided for the latest released version of `pai-myproject`.
+Security fixes are provided for the latest released version of `precisionai-agriemb`.
 
 Older versions are not guaranteed to receive patches. Please upgrade to the latest release before reporting a vulnerability where practical.
 
@@ -17,9 +17,9 @@ Instead, report suspected vulnerabilities privately by emailing:
 Please include as much of the following as possible:
 
 - A brief description of the issue
-- Steps to reproduce, including any relevant request payload or input data
+- Steps to reproduce, including any relevant input data
 - A minimal proof of concept, if available
-- The affected package version (`pip show pai-myproject`)
+- The affected package version (`pip show precisionai-agriemb`)
 - Python version and operating system
 - Any known impact or realistic attack scenario
 
@@ -29,18 +29,20 @@ We will acknowledge receipt within 7 business days and follow up with any questi
 
 Issues are considered security-relevant when they allow:
 
-- Unauthorized access to data or results served through the API
-- Arbitrary code execution triggered by a crafted input payload
-- Privilege escalation through the service
+- Arbitrary code execution triggered by a crafted input (dataset file, embedding payload, etc.)
+- Leakage of credentials (e.g. `PAI_EMBEDDINGS_API_KEY`) through logs, errors, or generated artifacts
 - Supply-chain compromise of the package or its release artifacts
-- Denial of service caused by malformed or adversarially large input where the service is expected to handle untrusted data
 
 The following are generally out of scope:
 
 - Issues that require pre-existing arbitrary code execution on the host
 - Vulnerabilities only affecting unsupported versions
-- Problems caused by intentionally unsafe deployment (e.g. exposing the API to the public internet without authentication)
+- Problems caused by intentionally unsafe use (e.g. committing a real `.env` file)
 - Reports without enough information to reproduce or assess the issue
+- Vulnerabilities in the sibling `agristress-utils` or `agrieval` projects — report
+  those in their own repositories
+- Vulnerabilities in the hosted PAI embedding API (https://embeddings.precision.ai/)
+  itself — report those to the address above, as it is a separate deployment
 
 ## Coordinated Disclosure
 
@@ -58,5 +60,5 @@ If a vulnerability is confirmed, we will:
 Security fixes are distributed through normal package channels. Upgrade with:
 
 ```bash
-pip install --upgrade pai-myproject
+pip install --upgrade precisionai-agriemb
 ```

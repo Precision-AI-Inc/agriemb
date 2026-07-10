@@ -2,37 +2,10 @@
 
 Apply these standards when writing, reviewing, or refactoring code in any PAI Python project.
 
----
-
-## Using this template
-
-When starting a new project from this template, complete these steps in order.
-
-**1. Global find-and-replace** (in the order shown — `myproject` last to avoid partial matches):
-
-| Find | Replace with | Notes |
-|---|---|---|
-| `agri-template` | your GitHub repository name | badge/logo URLs in `README.md`, comment in `.github/workflows/ci.yml`, issue template links |
-| `pai-myproject` | your distribution name (kebab-case, e.g. `pai-ag-emb`) | `pyproject.toml` `[project]` name and `[project.scripts]`, PyPI badge URLs |
-| `PAI MyProject` | your human-readable project name | `pyproject.toml` description, `docs/conf.py`, `docs/index.rst`, `docs/modules.rst` |
-| `myproject` | your project namespace (snake_case, e.g. `ag_emb`) | all Python source files, all `docs/` files, `pyproject.toml` |
-
-The `precisionai` top-level namespace package is **fixed** across all PAI Python projects — never rename it. Your project lives at `precisionai/<namespace>/`.
-
-**2. Update `pyproject.toml`:**
-- `description` — one-line description of what this project does
-- `dependencies` — remove FastAPI/uvicorn if not building an API; add domain-specific deps
-- `keywords`, `classifiers`, `[project.urls]` — adjust for your domain and repository
-
-**3. Replace the hello-world scaffold** in `precisionai/<namespace>/` with real domain logic, following the layer rules documented in [Project layout](#project-layout) below.
-
-**4. Update `docs/`** — `conf.py` project name and header, `index.rst` and `modules.rst` autodoc references.
-
-**5. Review `LICENSE.md`** — update the copyright year if needed. The license is Apache 2.0.
-
-**6. Seed `CHANGELOG.md`** with your first release notes under `[Unreleased]` — see [Releasing](#releasing).
-
-**7. Remove this section** from `CLAUDE.md` once setup is complete.
+This repo (`agriemb`) unifies three sibling projects — `agristress-utils`, the PAI
+embedding API (https://embeddings.precision.ai/), and `agrieval` — into one
+download-sample-embed-evaluate pipeline. It is a library + examples repo, not an API
+service.
 
 ---
 
@@ -47,21 +20,16 @@ The `precisionai` top-level namespace package is **fixed** across all PAI Python
 ## Project layout
 
 ```
-precisionai/<namespace>/
-  api/
-    routes/      # FastAPI route handlers (thin — delegate to services)
-    config.py    # env-var config only
-    app.py       # FastAPI app factory
-  schemas/       # Pydantic v2 request/response models
-  services/      # Business logic (orchestrates metrics, handles I/O)
-  metrics/       # Pure computation modules
-    __init__.py  # re-exports only — no logic
+precisionai/agriemb/
+  config.py      # env-var configuration (API key/base URL, dataset dir, model, batch size)
+  dataset.py      # download() + sample_cluster() — built on agristress-utils
+  embeddings.py    # build_client() + embed_images() — the PAI embedding API (openai SDK)
+  evaluate.py      # run_i2i_evaluation() — wires agristress-utils payloads into agrieval
 docs/            # Sphinx (HTML + LaTeX/PDF)
-tests/           # mirrors package structure
-examples/        # standalone runnable scripts
+examples/        # standalone runnable scripts + a notebook, built on precisionai.agriemb
 ```
 
-`precisionai` is a fixed, namespace-only top-level package (no logic, just an SPDX header) shared by every PAI Python project — it is what makes `precisionai.<namespace>.*` imports consistent across the org. Multi-product repositories (e.g. one repo serving several related tools) may add another level, `precisionai/<product>/<namespace>/...`.
+`precisionai` is a fixed, namespace-only top-level package (no logic, just an SPDX header) shared by every PAI Python project — it is what makes `precisionai.<namespace>.*` imports consistent across the org.
 
 ---
 
@@ -84,18 +52,15 @@ target-version = "py310"
 select = ["E","W","F","I","UP","B","SIM","N","C90","D","PT","RUF","PL","ANN","PERF","S"]
 ignore = [
     "E501",    # enforced by ruff-format
-    "B008",    # FastAPI default-arg pattern
     "SIM108",  # ternary readability
     "D100","D104",          # module/package docstrings optional
     "D203","D213",          # pydocstyle conflicts — always ignore these two
-    "PLR0913","PLR2004",    # arg count + magic values common in metrics/tests
+    "PLR0913","PLR2004",    # arg count + magic values common in metrics
     "ANN401",              # Any is allowed for genuinely dynamic types
     "S311",                # pseudo-random generators are intentional in scientific code
-    "S104",                # binding to 0.0.0.0 is intentional for a configurable server host
 ]
 [tool.ruff.lint.per-file-ignores]
 "**/__init__.py" = ["F401"]
-"tests/**"       = ["D","PLR","ANN","S"]
 "docs/conf.py"   = ["E402","UP031","ANN","S"]
 
 [tool.ruff.lint.pydocstyle]
@@ -111,14 +76,6 @@ known-first-party = ["precisionai"]
 quote-style = "double"
 indent-style = "space"
 docstring-code-format = true  # formats code blocks inside docstrings
-
-[tool.pytest.ini_options]
-addopts = "--cov=precisionai --cov-report=term-missing --cov-fail-under=90"
-
-[tool.coverage.report]
-fail_under = 90
-exclude_lines = ["pragma: no cover","if __name__ == .__main__.:",
-                 "raise ImportError","except ImportError"]
 
 [tool.pyright]
 pythonVersion = "3.10"
@@ -152,14 +109,6 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
-
-  - repo: local
-    hooks:
-      - id: pytest
-        entry: python -m pytest
-        language: system
-        args: [tests/, -q, --tb=short, --no-header]
-        always_run: true
 ```
 
 ---
@@ -217,9 +166,6 @@ if not _PLOTLY_AVAILABLE:
 ### General
 - `len()` returns `int` — never `int(len(...))`
 - Loop variables not used in the body → rename to `_`
-- `assert a and b` in tests → split into separate asserts
-- `@pytest.fixture` not `@pytest.fixture()`
-- `pytest.raises` always includes `match=` parameter
 - No `# type: ignore[attr-defined]` when `Any` already covers the attribute
 
 ---
@@ -241,16 +187,6 @@ docs/
 
 ---
 
-## Testing
-
-- Mirror package structure: `tests/test_<module>.py`
-- Shared fixtures in `tests/conftest.py`
-- 90% coverage hard minimum — enforced by pytest and pre-commit
-- No mocks for database/filesystem unless truly unavoidable
-- Integration tests marked `@pytest.mark.integration` and excluded from default runs
-
----
-
 ## Repository scaffolding
 
 Every PAI Python project repository, in addition to the source layout above, ships with:
@@ -259,7 +195,7 @@ Every PAI Python project repository, in addition to the source layout above, shi
 .gitattributes              # normalize line endings to LF; declare binary assets
 CHANGELOG.md                # Keep a Changelog format + Semantic Versioning
 CODE_OF_CONDUCT.md          # Contributor Covenant v2.1
-MANIFEST.in                 # sdist packaging — include docs/license/changelog, exclude tests/examples
+MANIFEST.in                 # sdist packaging — include docs/license/changelog, exclude examples
 .github/
   dependabot.yml            # weekly pip + github-actions update checks
   ISSUE_TEMPLATE/
@@ -268,9 +204,8 @@ MANIFEST.in                 # sdist packaging — include docs/license/changelog
     config.yml               # blank_issues_enabled: false + link to SECURITY.md
   PULL_REQUEST_TEMPLATE.md
   workflows/
-    ci.yml                   # dispatches to pre-commit.yml + unit-test.yml
+    ci.yml                   # dispatches to pre-commit.yml
     pre-commit.yml
-    unit-test.yml
     release.yml               # tag push → build, PyPI publish, GitHub Release
 ```
 
@@ -280,7 +215,7 @@ These are not optional extras — treat them as part of the standard layout when
 
 - Versions are **never hardcoded** — `setuptools-scm` derives the package version from the current git tag (see the `pyproject.toml` block above). Tag with `vX.Y.Z`.
 - Update `CHANGELOG.md` under `[Unreleased]` as you go; move those entries to a new `## [X.Y.Z] - YYYY-MM-DD` section when cutting a release.
-- Pushing a `v*.*.*` tag triggers `.github/workflows/release.yml`: runs the full test matrix, builds the sdist/wheel, verifies the built version matches the tag, publishes to PyPI via trusted publishing (`id-token: write`, no stored API tokens), and creates a GitHub Release with generated notes.
+- Pushing a `v*.*.*` tag triggers `.github/workflows/release.yml`: builds the sdist/wheel, verifies the built version matches the tag, publishes to PyPI via trusted publishing (`id-token: write`, no stored API tokens), and creates a GitHub Release with generated notes.
 - CI checkout steps that build from git history (release builds, docs version detection) must use `fetch-depth: 0` — a shallow checkout has no tags for `setuptools-scm` or `git describe` to find.
 
 ---
@@ -291,9 +226,6 @@ These are not optional extras — treat them as part of the standard layout when
 |---|---|
 | `int(len(x))` | `len(x)` |
 | `isinstance(x, (A, B))` | `isinstance(x, A \| B)` |
-| `assert a and b` (tests) | two separate asserts |
-| `@pytest.fixture()` | `@pytest.fixture` |
-| `pytest.raises(ValueError)` | `pytest.raises(ValueError, match="…")` |
 | `raise X` inside except | `raise X from None` or `raise X from err` |
 | Deferred imports inside functions | Module-level try/except with flag |
 | Cryptic prefixes (P0–P4, "original") | Plain descriptive names |

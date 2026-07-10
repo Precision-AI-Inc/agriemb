@@ -1,74 +1,45 @@
 Module Reference
 ================
 
-API documentation for the ``precisionai.myproject`` package — metrics, services, schemas, and routes.
+API documentation for the ``precisionai.agriemb`` package — configuration, dataset,
+embeddings, and evaluation.
 
-precisionai.myproject.metrics
+precisionai.agriemb.config
 ------------------------------
 
-Top-level re-exports from the metrics package.
+Environment-driven configuration (API key/base URL, dataset dir, model, batch size).
 
-.. automodule:: precisionai.myproject.metrics
+.. automodule:: precisionai.agriemb.config
    :members:
    :undoc-members:
    :show-inheritance:
 
-precisionai.myproject.metrics.compute
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+precisionai.agriemb.dataset
+------------------------------
 
-Pure computation utilities (stateless functions, no I/O).
+Dataset download and cluster sampling, built on ``agristress-utils``.
 
-.. automodule:: precisionai.myproject.metrics.compute
+.. automodule:: precisionai.agriemb.dataset
    :members:
    :undoc-members:
    :show-inheritance:
 
-precisionai.myproject.services.hello
---------------------------------------
+precisionai.agriemb.embeddings
+------------------------------
 
-Business logic for greeting operations.
+Image embedding generation via the PAI embedding API.
 
-.. automodule:: precisionai.myproject.services.hello
+.. automodule:: precisionai.agriemb.embeddings
    :members:
    :undoc-members:
    :show-inheritance:
 
-precisionai.myproject.schemas.hello
---------------------------------------
+precisionai.agriemb.evaluate
+------------------------------
 
-Pydantic request and response schemas for the hello endpoint.
+Image→Image retrieval evaluation via ``agrieval``.
 
-.. automodule:: precisionai.myproject.schemas.hello
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-precisionai.myproject.api.routes.hello
-------------------------------------------
-
-FastAPI route handler for ``POST /v1/hello``.
-
-.. automodule:: precisionai.myproject.api.routes.hello
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-precisionai.myproject.api.config
-------------------------------------
-
-Environment-variable configuration.
-
-.. automodule:: precisionai.myproject.api.config
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-precisionai.myproject.api.app
-------------------------------------
-
-FastAPI application factory and CLI entry point.
-
-.. automodule:: precisionai.myproject.api.app
+.. automodule:: precisionai.agriemb.evaluate
    :members:
    :undoc-members:
    :show-inheritance:

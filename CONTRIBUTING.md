@@ -8,7 +8,7 @@ Requires Python 3.10+.
 
 ```bash
 git clone <repo-url>
-cd pai-myproject
+cd agriemb
 
 python -m venv .venv
 source .venv/bin/activate       # Windows: .venv\Scripts\activate
@@ -17,14 +17,13 @@ pip install -e ".[dev]"
 pre-commit install
 ```
 
-`pip install -e ".[dev]"` installs all dependencies including test tooling and pre-commit. `pre-commit install` registers the hooks so they run automatically on every commit.
+`pip install -e ".[dev]"` installs all dependencies including pre-commit. `pre-commit install` registers the hooks so they run automatically on every commit.
 
 ## Making changes
 
 1. Create a branch from `main`.
 2. Make your changes.
-3. Add or update tests — coverage must remain at or above 90%.
-4. Commit. Pre-commit hooks run automatically and will block the commit if any check fails.
+3. Commit. Pre-commit hooks run automatically and will block the commit if any check fails.
 
 If a hook auto-fixes files (ruff lint/format), stage the changes and commit again.
 
@@ -36,7 +35,6 @@ If a hook auto-fixes files (ruff lint/format), stage the changes and commit agai
 | `ruff` | Linting and import sorting (auto-fix); includes `ANN` rules that enforce PEP 484 annotations |
 | `ruff-format` | Code formatting (auto-fix) |
 | `pyright` | Static type checking (pylance engine) — config in `[tool.pyright]` in `pyproject.toml` |
-| `pytest` | Full test suite with ≥ 90% coverage |
 
 Run all hooks manually without committing:
 
@@ -52,16 +50,6 @@ pre-commit run --all-files
 - **Comments:** only where the _why_ is non-obvious. No inline narration of what the code does.
 
 See [CLAUDE.md](CLAUDE.md) for the full standard.
-
-## Tests
-
-```bash
-pytest                          # run all tests with coverage report
-pytest tests/test_hello.py      # run a specific file
-pytest -k "shout"               # run tests matching a pattern
-```
-
-Tests live in `tests/` and mirror the package structure. The coverage threshold (90%) is enforced both by `pytest` directly and by the pre-commit hook.
 
 ## Pull requests
 

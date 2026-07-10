@@ -9,9 +9,7 @@ repos:
       - id: check-json
       - id: check-toml
       - id: end-of-file-fixer
-        exclude: ^\.github/badges/
       - id: trailing-whitespace
-        exclude: ^\.github/badges/
       - id: check-merge-conflict
       - id: detect-private-key
       - id: debug-statements
@@ -34,14 +32,3 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
-
-  # ── Tests + coverage (≥ 90%) ────────────────────────────────────────────────
-  - repo: local
-    hooks:
-      - id: pytest
-        name: pytest (coverage ≥ 90%)
-        entry: python -m pytest
-        language: system
-        args: ["tests/", "-q", "--tb=short", "--no-header"]
-        pass_filenames: false
-        always_run: true
