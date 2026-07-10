@@ -1,12 +1,10 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Precision-AI-Inc/agriemb/main/docs/assets/logo.png" alt="Precision AI Logo" width="120"/>
+  <img src="docs/assets/logo.png" alt="Precision AI Logo" width="120"/>
 </p>
 
 # PAI AgriEmb
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE.md)
-[![PyPI](https://img.shields.io/pypi/v/precisionai-agriemb.svg?include_prereleases)](https://pypi.org/project/precisionai-agriemb/)
-[![Python](https://img.shields.io/pypi/pyversions/precisionai-agriemb.svg?include_prereleases)](https://pypi.org/project/precisionai-agriemb/)
 
 ---
 
@@ -175,7 +173,7 @@ Dependencies: `pip install -r docs/requirements.txt`
 
 ## Releasing
 
-Push a tag matching `v*.*.*` (e.g. `v0.1.0`) to trigger `.github/workflows/release.yml`, which builds the sdist/wheel, publishes to PyPI via trusted publishing, and creates a GitHub Release. The package version is derived from the git tag via `setuptools-scm` — update `CHANGELOG.md` before tagging.
+Push a tag matching `v*.*.*` (e.g. `v0.1.0`) to trigger `.github/workflows/release.yml`, which builds the sdist/wheel and creates a GitHub Release. The package version is derived from the git tag via `setuptools-scm` — update `CHANGELOG.md` before tagging.
 
 ---
 
