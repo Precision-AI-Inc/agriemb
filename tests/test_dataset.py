@@ -13,6 +13,7 @@ import warnings
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
 
 from precisionai.agriemb import dataset as dataset_module
@@ -214,6 +215,20 @@ class TestVerifyDataset:
 
         assert verify_dataset(dataset_root) == []
 
+    def test_accepts_masks_stored_flat_instead_of_mirroring_the_image_tree(self, dataset_root: Path) -> None:
+        for mask in sorted((dataset_root / "masks").rglob("*.png")):
+            mask.rename(dataset_root / "masks" / mask.name)
+
+        assert verify_dataset(dataset_root) == []
+
+    def test_accepts_masks_nested_deeper_than_the_image_tree(self, dataset_root: Path) -> None:
+        for mask in sorted((dataset_root / "masks").rglob("*.png")):
+            nested = mask.parent / "annotated" / "v2"
+            nested.mkdir(parents=True, exist_ok=True)
+            mask.rename(nested / mask.name)
+
+        assert verify_dataset(dataset_root) == []
+
     def test_reports_a_missing_instance_crop(self, dataset_root: Path) -> None:
         (dataset_root / _instance_id("A1", 0, 0)).unlink()
 
@@ -248,11 +263,20 @@ class _HubHTTPError(OSError):
         self.response = _Response(status_code)
 
 
+class _LocalEntryNotFoundError(FileNotFoundError):
+    """Stand-in for ``huggingface_hub.errors.LocalEntryNotFoundError``.
+
+    A ``FileNotFoundError`` carrying no response, which is what
+    ``snapshot_download`` re-raises for a connection error or a timeout while
+    resolving repo info. The single most common transient failure.
+    """
+
+
 class _StubDownload:
     """Raise the given errors on successive calls, then return *result*."""
 
-    def __init__(self, errors: list[OSError], result: Path) -> None:
-        self.errors = list(errors)
+    def __init__(self, errors: list[Exception], result: Path) -> None:
+        self.errors: list[Exception] = list(errors)
         self.result = result
         self.calls = 0
 
@@ -306,6 +330,40 @@ class TestDownload:
         assert download(tmp_path) == tmp_path
         assert stub.calls == 2
 
+    @pytest.mark.parametrize(
+        "error",
+        [
+            _LocalEntryNotFoundError("An error happened while trying to locate the file on the Hub"),
+            httpx.ConnectError("[Errno 111] Connection refused"),
+            httpx.ReadTimeout("timed out"),
+            httpx.RemoteProtocolError("peer closed connection without sending complete message body"),
+            _HubHTTPError(429),
+            _HubHTTPError(500),
+            _HubHTTPError(503),
+        ],
+    )
+    def test_retries_anything_not_positively_identified_as_permanent(
+        self, monkeypatch: pytest.MonkeyPatch, sleeps: list[float], tmp_path: Path, error: Exception
+    ) -> None:
+        stub = _install(monkeypatch, _StubDownload([error], tmp_path))
+
+        assert download(tmp_path) == tmp_path
+        assert stub.calls == 2
+        assert sleeps == [5.0]
+
+    def test_exhausted_retries_never_surface_as_a_missing_local_file(
+        self, monkeypatch: pytest.MonkeyPatch, sleeps: list[float], tmp_path: Path
+    ) -> None:
+        _install(monkeypatch, _StubDownload([_LocalEntryNotFoundError("connection error") for _ in range(4)], tmp_path))
+
+        with pytest.raises(ConnectionError) as excinfo:
+            download(tmp_path, max_attempts=4)
+
+        # A bare FileNotFoundError here would be reported by every example
+        # script as "the dataset has not been downloaded yet".
+        assert not isinstance(excinfo.value, FileNotFoundError)
+        assert str(excinfo.value).startswith(RATE_LIMITED_MESSAGE)
+
     def test_gives_up_with_a_resumable_message_naming_the_last_error(
         self, monkeypatch: pytest.MonkeyPatch, sleeps: list[float], tmp_path: Path
     ) -> None:
@@ -330,7 +388,7 @@ class TestDownload:
         ],
     )
     def test_does_not_retry_or_mislabel_a_failure_a_retry_cannot_fix(
-        self, monkeypatch: pytest.MonkeyPatch, sleeps: list[float], tmp_path: Path, error: OSError
+        self, monkeypatch: pytest.MonkeyPatch, sleeps: list[float], tmp_path: Path, error: Exception
     ) -> None:
         stub = _install(monkeypatch, _StubDownload([error], tmp_path))
 

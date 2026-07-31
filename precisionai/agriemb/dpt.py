@@ -93,7 +93,16 @@ def embed_patch_tokens(
     -------
     dict[str, list[Any]]
         Image id → nested-list ``[P, H, W]`` feature map, JSON-serializable.
+
+    Raises
+    ------
+    ValueError
+        If *paths* is empty. An empty feature map would only fail later, and
+        less legibly, inside :func:`run_dpt_evaluation`.
     """
+    if not paths:
+        raise ValueError("No images to embed: `paths` is empty, so there are no patch tokens to build.")
+
     grid_h, grid_w = grid_size
     tiles_by_image = {image_id: tile_image(path, grid_size) for image_id, path in paths.items()}
 

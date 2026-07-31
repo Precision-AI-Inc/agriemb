@@ -3,13 +3,14 @@
 
 """Dataset download and cluster sampling built on ``agristress-utils``."""
 
-import glob
+import errno
 import random
 import sys
 import time
 import warnings
 from pathlib import Path, PurePosixPath
 
+import httpx
 from pydantic import ValidationError
 
 from precisionai.agriemb.config import DEFAULT_REPO_ID
@@ -20,10 +21,10 @@ DOWNLOAD_INITIAL_BACKOFF_SECONDS = 5.0
 
 RATE_LIMITED_MESSAGE = "Download interrupted (rate-limited). It is resumable - re-run this script."
 
-# Non-5xx HTTP statuses a later attempt could still succeed on. Everything
-# else with a status (401, 403, 404, ...) fails the same way however often it
-# is retried.
-_TRANSIENT_HTTP_STATUS = frozenset({408, 425, 429})
+# HTTP statuses that identify a request no retry can turn into a success: a
+# missing repo, a gated repo, or a rejected token. Every other status,
+# including 429 and the 5xx family, is retried.
+_PERMANENT_HTTP_STATUS = frozenset({401, 403, 404})
 
 # Files the dataset root must contain before any cluster can be enumerated.
 _REQUIRED_MANIFESTS = ("image2image.json", "plant2image.json", "plant2plant.json", "class_map.json")
@@ -32,46 +33,52 @@ _REQUIRED_MANIFESTS = ("image2image.json", "plant2image.json", "plant2plant.json
 _SUGGESTION_COUNT = 8
 
 
-def _attempt_download(dataset_dir: str | Path, repo_id: str) -> Path | OSError:
+def _attempt_download(dataset_dir: str | Path, repo_id: str) -> Path | Exception:
     """Run one download attempt, returning the error rather than raising it.
 
-    Rate limits, connection resets, timeouts and HTTP errors from the Hub all
-    subclass ``OSError``, as do permission and disk-space failures;
-    :func:`_is_transient` tells them apart. Returning the error keeps
-    :func:`download`'s retry loop free of a ``try``/``except`` in its body.
+    ``huggingface_hub`` wraps most failures in an ``OSError`` subclass, but it
+    also re-raises ``httpx`` transport errors untouched mid-stream, and those
+    subclass neither ``OSError`` nor anything else :func:`download`'s callers
+    handle. Catching both families keeps a dropped connection from escaping as
+    a raw traceback. Returning the error keeps :func:`download`'s retry loop
+    free of a ``try``/``except`` in its body.
     """
     try:
         return download_dataset(dataset_dir, repo_id=repo_id)
-    except OSError as err:
+    except (OSError, httpx.HTTPError) as err:
         return err
 
 
-def _is_transient(error: OSError) -> bool:
-    """Report whether a failed download attempt could succeed if it were retried.
+def _is_permanent(error: Exception) -> bool:
+    """Report whether a failed download attempt is certain to fail again identically.
 
     ``huggingface_hub``, ``httpx`` and the xet client raise unrelated
-    exception classes that share only ``OSError`` as an ancestor, so the
-    decision is made on the HTTP status when the error carries a response and
-    on the exception type otherwise. A gated or missing repo, a rejected
-    token, a read-only directory or a full disk is never retried: it would
-    fail identically on every attempt and reporting it as rate limiting sends
-    the user off to re-run a command that cannot work.
+    exception classes for the same underlying condition, so anything not
+    positively identified as permanent is retried. The asymmetry is
+    deliberate: needlessly retrying a permanent failure costs half a minute,
+    while failing to retry a transient one aborts a 20-minute download over a
+    momentary rate limit. In particular ``LocalEntryNotFoundError`` is what
+    ``snapshot_download`` raises for a connection error or timeout while
+    resolving repo info, and it carries no response, so it must not be
+    mistaken for a missing file.
 
     Parameters
     ----------
-    error : OSError
+    error : Exception
         The error a download attempt failed with.
 
     Returns
     -------
     bool
-        True for rate limits, server-side failures and connection or timeout
-        errors; False for everything else.
+        True for a missing or gated repo, a rejected token, a read-only
+        destination and a full disk; False for everything else.
     """
     status = getattr(getattr(error, "response", None), "status_code", None)
     if isinstance(status, int):
-        return status in _TRANSIENT_HTTP_STATUS or status >= 500
-    return isinstance(error, ConnectionError | TimeoutError)
+        return status in _PERMANENT_HTTP_STATUS
+    if isinstance(error, PermissionError):
+        return True
+    return isinstance(error, OSError) and error.errno == errno.ENOSPC
 
 
 def download(
@@ -83,12 +90,17 @@ def download(
 
     The dataset is ~12 GB across 4950 files and takes 20+ minutes to fetch on
     a fast connection. HuggingFace rate-limits (HTTP 429) partway through
-    often enough that a single attempt is unreliable, so transient failures
-    are retried with exponential backoff. Every attempt resumes from whatever
-    is already on disk, so re-running after a failure never restarts from
-    zero. Failures a retry cannot fix (a missing or gated repo, a rejected
-    token, a read-only directory, a full disk) are reported immediately
-    instead, since backing off and re-running only delays the same error.
+    often enough that a single attempt is unreliable, so a failed attempt is
+    retried with exponential backoff by default. Every attempt resumes from
+    whatever is already on disk, so re-running after a failure never restarts
+    from zero. Only the few failures positively identified as permanent by
+    :func:`_is_permanent` (a missing or gated repo, a rejected token, a
+    read-only directory, a full disk) skip the retries and are reported
+    immediately, since backing off only delays the same error.
+
+    A failure never propagates as the ``FileNotFoundError`` that
+    ``huggingface_hub`` raises for a lost connection, because callers reserve
+    that for "the dataset has not been downloaded yet".
 
     Parameters
     ----------
@@ -107,18 +119,18 @@ def download(
     Raises
     ------
     ConnectionError
-        If every attempt failed with a transient network error. Whatever was
-        already downloaded stays on disk, so re-running resumes from there.
+        If every attempt failed. Whatever was already downloaded stays on
+        disk, so re-running resumes from there.
     RuntimeError
         If an attempt failed with an error a retry cannot fix. The underlying
         error is named in the message and chained as the cause.
     """
-    last_error: OSError | None = None
+    last_error: Exception | None = None
     for attempt in range(1, max_attempts + 1):
         outcome = _attempt_download(dataset_dir, repo_id)
-        if not isinstance(outcome, OSError):
+        if not isinstance(outcome, Exception):
             return outcome
-        if not _is_transient(outcome):
+        if _is_permanent(outcome):
             raise RuntimeError(
                 f"Downloading {repo_id} into {dataset_dir} failed for a reason retrying cannot fix, so it "
                 f"was not retried: {outcome}"
@@ -139,11 +151,12 @@ def download(
 def _missing_masks(root: Path, image_ids: list[str]) -> list[str]:
     """Return the dataset-relative mask paths no file on disk answers to.
 
-    Masks mirror the image tree (``images/A1/pai-x.png`` ->
-    ``masks/A1/pai-x.*``) but nothing guarantees they share the image's file
-    extension, so each one is resolved by stem the way ``agrieval`` resolves
-    its own ground-truth masks. Substituting the image extension instead
-    would report every mask in a complete dataset as missing.
+    A mask is matched to its image by filename stem alone, exactly the way
+    ``agrieval`` resolves its own ground-truth masks: neither the extension
+    nor the directory layout under ``masks/`` is assumed to mirror the image
+    tree, because assuming either would report every mask in a complete
+    dataset as missing if the real dataset disagreed. The whole of ``masks/``
+    is indexed in one walk rather than globbed once per image.
 
     Parameters
     ----------
@@ -158,13 +171,12 @@ def _missing_masks(root: Path, image_ids: list[str]) -> list[str]:
         The expected mask paths that resolved to nothing, named after their
         image so the message points at a real dataset entry.
     """
-    missing: list[str] = []
-    for image_id in image_ids:
-        relative = PurePosixPath(image_id.split("/", 1)[1])
-        candidates = (root / "masks" / relative.parent).glob(f"{glob.escape(relative.stem)}.*")
-        if not any(candidate.is_file() for candidate in candidates):
-            missing.append(f"masks/{relative}")
-    return missing
+    stems = {path.stem for path in (root / "masks").rglob("*") if path.is_file()}
+    return [
+        f"masks/{relative}"
+        for relative in (PurePosixPath(image_id.split("/", 1)[1]) for image_id in image_ids)
+        if relative.stem not in stems
+    ]
 
 
 def verify_dataset(dataset_dir: str | Path) -> list[str]:
@@ -403,6 +415,9 @@ def sample_cluster_instances(
         viable = _clusters_with_instances(dataset)
         if not viable:
             raise ValueError("No cluster in this dataset has usable instance crops.")
+        # A separate RNG, so that resolving the cluster does not advance `rng`
+        # and change the instance sampling below: omitting `cluster` must give
+        # the same crops as naming the cluster it resolves to.
         resolved = random.Random(seed).choice(viable)
 
     chosen, image_ids = sample_cluster(dataset, cluster=resolved, num_samples=num_samples, seed=seed)

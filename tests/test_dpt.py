@@ -4,11 +4,12 @@
 """Tests for Dense Patch Token tiling."""
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 from PIL import Image
 
-from precisionai.agriemb.dpt import DEFAULT_GRID_SIZE, tile_image
+from precisionai.agriemb.dpt import DEFAULT_GRID_SIZE, embed_patch_tokens, tile_image
 
 
 @pytest.fixture
@@ -54,3 +55,19 @@ class TestTileImage:
         # A coarser grid collapses every AgriStress-500 patch label to
         # `background` on most clusters, disabling every separation metric.
         assert DEFAULT_GRID_SIZE == (8, 8)
+
+
+class _UnusedClient:
+    """Client that fails the test if the embedding API is reached at all."""
+
+    @property
+    def embeddings(self) -> Any:
+        raise AssertionError("no embedding call should be made for an empty input")
+
+
+class TestEmbedPatchTokens:
+    """Tests for :func:`precisionai.agriemb.dpt.embed_patch_tokens`."""
+
+    def test_rejects_an_empty_input_before_calling_the_api(self) -> None:
+        with pytest.raises(ValueError, match="empty"):
+            embed_patch_tokens(_UnusedClient(), {})

@@ -50,11 +50,23 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    payload_source = json.loads(Path(args.features).read_text())
+    features_path = Path(args.features)
+    if not features_path.is_file():
+        raise FileNotFoundError(
+            f"No feature maps at {features_path}. Run `python examples/dpt/02_generate_features.py` first."
+        )
+
+    payload_source = json.loads(features_path.read_text())
     dataset_dir = Path(payload_source["dataset_dir"])
     images = payload_source["images"]
 
-    result = run_dpt_evaluation(dataset_dir, images, k_values=args.k_values, with_labels=not args.no_labels)
+    try:
+        result = run_dpt_evaluation(dataset_dir, images, k_values=args.k_values, with_labels=not args.no_labels)
+    except FileNotFoundError as err:
+        raise FileNotFoundError(
+            f"{err}\nThe dataset copy is incomplete: re-run `python examples/01_download_dataset.py` to resume "
+            f"it, or pass --no-labels to skip ground-truth masks entirely."
+        ) from err
 
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -70,6 +82,6 @@ if __name__ == "__main__":
     try:
         main()
     except FileNotFoundError as err:
-        sys.exit(f"Error: {err}\nRun `python examples/dpt/02_generate_features.py` first.")
+        sys.exit(f"Error: {err}")
     except (RuntimeError, ValueError) as err:
         sys.exit(f"Error: {err}")
