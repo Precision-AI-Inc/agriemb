@@ -9,3 +9,5 @@
 <!-- How did you verify the change works? -->
 
 - [ ] Pre-commit hooks pass (`pre-commit run --all-files`)
+- [ ] Tests pass (`pytest`)
+- [ ] Docs build clean if anything public changed (`make -C docs html`)

@@ -32,7 +32,7 @@ If a hook auto-fixes files (ruff lint/format), stage the changes and commit agai
 | Hook | What it checks |
 |---|---|
 | File hygiene | Large files (>1800 KB), trailing whitespace, merge conflicts, private keys, debug statements, BOM removal |
-| `ruff` | Linting and import sorting (auto-fix); includes `ANN` rules that enforce PEP 484 annotations |
+| `ruff-check` | Linting and import sorting (auto-fix); includes `ANN` rules that enforce PEP 484 annotations |
 | `ruff-format` | Code formatting (auto-fix) |
 | `pyright` | Static type checking (pylance engine) — config in `[tool.pyright]` in `pyproject.toml` |
 
@@ -41,6 +41,26 @@ Run all hooks manually without committing:
 ```bash
 pre-commit run --all-files
 ```
+
+## Tests
+
+Tests live in `tests/` and are pure and offline - they need no dataset download, no API key, and no network:
+
+```bash
+pytest
+```
+
+## Continuous integration
+
+Pushes to `main` and pull requests run `.github/workflows/ci.yml`, which dispatches to three jobs:
+
+| Job | What it runs |
+|---|---|
+| `pre-commit` | All hooks above, across all files |
+| `test` | `pytest`, preceded by an import smoke-test of `precisionai.agriemb` from the repo root |
+| `docs` | A strict Sphinx build (`make -C docs html` passes `-W --keep-going`), then a check that the generated Module Reference is not empty |
+
+The release workflow runs the same three jobs before it builds or publishes anything, so a tag pushed from a red commit cannot produce a GitHub Release.
 
 ## Code style
 
@@ -55,7 +75,7 @@ See [CLAUDE.md](CLAUDE.md) for the full standard.
 
 - Keep PRs focused — one logical change per PR.
 - Write a clear description of what changed and why.
-- All pre-commit hooks must pass before requesting review.
+- All CI checks - pre-commit hooks, tests, and the docs build - must pass before requesting review.
 
 ## License
 

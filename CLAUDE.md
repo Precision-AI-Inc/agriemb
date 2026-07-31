@@ -50,7 +50,7 @@ clean `data/`, and read the numbers. Default run cost: 10 + 8 + 9 + 128 = 155
 ## Environment
 
 - Python 3.10+, managed with `python -m venv .venv` (never conda)
-- Install: `pip install -e ".[dev]"` → installs all deps including pre-commit
+- Install: `pip install -e ".[dev]"` → installs all deps including pre-commit and pytest
 - Register hooks once: `pre-commit install`
 
 ---
@@ -87,6 +87,9 @@ dynamic = ["version"]   # version comes from the git tag via setuptools-scm, nev
 
 [tool.setuptools.packages.find]
 namespaces = true             # `precisionai` is a PEP 420 namespace package
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]         # so a bare `pytest` collects the offline suite only
 
 [tool.setuptools_scm]
 version_scheme = "no-guess-dev"
@@ -244,9 +247,10 @@ Every PAI Python project repository, in addition to the source layout above, shi
 
 ```
 .gitattributes              # normalize line endings to LF; declare binary assets
+AGENTS.md                   # short pointer to this file; a regular file, never a symlink
 CHANGELOG.md                # Keep a Changelog format + Semantic Versioning
 CODE_OF_CONDUCT.md          # Contributor Covenant v2.1
-MANIFEST.in                 # sdist packaging — include docs/license/changelog, exclude examples
+MANIFEST.in                 # sdist packaging — include license/readme/changelog, prune examples, tests, docs and .github
 .github/
   dependabot.yml            # weekly pip + github-actions update checks
   ISSUE_TEMPLATE/
@@ -270,6 +274,7 @@ These are not optional extras — treat them as part of the standard layout when
 - Update `CHANGELOG.md` under `[Unreleased]` as you go; move those entries to a new `## [X.Y.Z] - YYYY-MM-DD` section when cutting a release.
 - Pushing a `v*.*.*` tag triggers `.github/workflows/release.yml`: builds the sdist/wheel, verifies the built version matches the tag, and creates a GitHub Release (named after the tag, e.g. `v1.0.0`) with the built artifacts attached and generated release notes. This repo is not published to PyPI.
 - The release workflow must verify the artifacts in `dist/` and install the built wheel. Reading the version from `importlib.metadata` in the build checkout resolves through the stray `*.egg-info/` that `python -m build` leaves behind, so it passes without checking anything.
+- The release workflow must also run the same checks `ci.yml` does (pre-commit, tests, docs) before it builds anything. A tag can be pushed from any commit, and `ci.yml` only ever sees pushes to the default branch and pull requests, so nothing else stops a red commit from being published.
 - CI checkout steps that build from git history (release builds, docs version detection) must use `fetch-depth: 0` — a shallow checkout has no tags for `setuptools-scm` or `git describe` to find.
 
 ---

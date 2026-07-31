@@ -36,7 +36,7 @@ source .venv/bin/activate   # Windows: .venv\Scripts\activate
 # Runtime only
 pip install -r requirements.txt
 
-# Full development (pre-commit, type checking)
+# Full development (pre-commit, type checking, tests)
 pip install -e ".[dev]"
 pre-commit install
 
@@ -239,7 +239,7 @@ precisionai/agriemb/
   evaluate.py             # Image2Image, Plant2Image, Plant2Plant evaluation (agrieval)
   dpt.py                  # Tile + embed images into patch-token feature maps; Dense Patch Token evaluation (agrieval)
 docs/                     # Sphinx (HTML + LaTeX/PDF)
-tests/                    # Unit tests for sampling, verification, encoding and tiling (no network)
+tests/                    # Unit tests for download retries, sampling, verification, encoding, tiling and result printing (no network)
 examples/                 # Standalone runnable scripts + notebooks
   01_download_dataset.py  # Shared prerequisite for every scenario below
   image2image/            # Sample -> embed -> evaluate -> end-to-end, plus a notebook
@@ -269,11 +269,17 @@ make clean      # Remove build artefacts
 
 Dependencies: `pip install -r docs/requirements.txt`
 
+`make html` builds with `-W --keep-going`, so any Sphinx warning - including an autodoc directive that fails to import its module - fails the build instead of silently shipping an API chapter with no signatures in it.
+
 ---
 
 ## Releasing
 
-Push a tag matching `v*.*.*` (e.g. `v0.1.0`) to trigger `.github/workflows/release.yml`, which builds the sdist/wheel and creates a GitHub Release. The package version is derived from the git tag via `setuptools-scm` — update `CHANGELOG.md` before tagging.
+Push a tag matching `v*.*.*` (e.g. `v0.1.0`) to trigger `.github/workflows/release.yml`.
+It first runs the same pre-commit, test and docs jobs as CI, because a tag can be pushed from any commit, including one CI never saw green.
+It then builds the sdist/wheel, checks that `dist/` holds exactly the artifacts named after the tag, installs the built wheel into a clean venv and imports it, and creates a GitHub Release with both artifacts attached.
+Pre-release tags (`v1.0.0rc1` and its `-rc1`/`.rc1` spellings) are published as pre-releases.
+The package version is derived from the git tag via `setuptools-scm` — update `CHANGELOG.md` before tagging.
 
 ---
 

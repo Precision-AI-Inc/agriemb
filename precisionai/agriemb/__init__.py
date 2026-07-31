@@ -6,8 +6,9 @@
 Connects three sibling projects into one download-sample-embed-evaluate
 pipeline:
 
-- ``precisionai.agriemb.dataset``    — download the AgriStress-500 dataset
-  and sample a cluster or its instance crops (via ``agristress-utils``)
+- ``precisionai.agriemb.dataset``    — download and verify the AgriStress-500
+  dataset, and sample a cluster, a cluster plus cross-cluster distractors, or
+  a cluster's instance crops (via ``agristress-utils``)
 - ``precisionai.agriemb.embeddings`` — generate image embeddings through the
   hosted PAI embedding API (https://embeddings.precision.ai/, OpenAI SDK-compatible)
 - ``precisionai.agriemb.evaluate``   — run Image→Image, Plant→Image, and
@@ -17,7 +18,8 @@ pipeline:
   dense-feature backbone is wired to it directly), then run Dense Patch
   Token evaluation on them (via ``agrieval``)
 
-See ``examples/`` for runnable scripts and a notebook built on this package.
+See ``examples/`` for runnable scripts and a notebook per scenario, built on
+this package.
 """
 
 from precisionai.agriemb.dataset import (
