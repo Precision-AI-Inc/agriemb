@@ -7,24 +7,36 @@ Connects three sibling projects into one download-sample-embed-evaluate
 pipeline:
 
 - ``precisionai.agriemb.dataset``    — download the AgriStress-500 dataset
-  and sample a cluster (via ``agristress-utils``)
+  and sample a cluster or its instance crops (via ``agristress-utils``)
 - ``precisionai.agriemb.embeddings`` — generate image embeddings through the
   hosted PAI embedding API (https://embeddings.precision.ai/, OpenAI SDK-compatible)
-- ``precisionai.agriemb.evaluate``   — run Image→Image retrieval evaluation
-  on the generated embeddings (via ``agrieval``)
+- ``precisionai.agriemb.evaluate``   — run Image→Image, Plant→Image, and
+  Plant→Plant retrieval evaluation on the generated embeddings (via ``agrieval``)
+- ``precisionai.agriemb.dpt``        — build per-patch feature maps by tiling
+  images and embedding every tile through the hosted PAI embedding API (no
+  dense-feature backbone is wired to it directly), then run Dense Patch
+  Token evaluation on them (via ``agrieval``)
 
 See ``examples/`` for runnable scripts and a notebook built on this package.
 """
 
-from precisionai.agriemb.dataset import download, sample_cluster
-from precisionai.agriemb.embeddings import build_client, embed_images, image_to_data_uri
-from precisionai.agriemb.evaluate import run_i2i_evaluation
+from precisionai.agriemb.dataset import download, sample_cluster, sample_cluster_instances
+from precisionai.agriemb.dpt import embed_patch_tokens, run_dpt_evaluation, tile_image
+from precisionai.agriemb.embeddings import build_client, embed_images, image_array_to_data_uri, image_to_data_uri
+from precisionai.agriemb.evaluate import run_i2i_evaluation, run_p2i_evaluation, run_p2p_evaluation
 
 __all__ = [
     "build_client",
     "download",
     "embed_images",
+    "embed_patch_tokens",
+    "image_array_to_data_uri",
     "image_to_data_uri",
+    "run_dpt_evaluation",
     "run_i2i_evaluation",
+    "run_p2i_evaluation",
+    "run_p2p_evaluation",
     "sample_cluster",
+    "sample_cluster_instances",
+    "tile_image",
 ]

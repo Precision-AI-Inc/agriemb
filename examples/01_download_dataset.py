@@ -3,6 +3,11 @@
 
 """Download the AgriStress-500 dataset used by the rest of the examples.
 
+Shared prerequisite for all three retrieval scenarios under ``examples/``:
+``image2image/``, ``plant2image/``, and ``plant2plant/``. Each scenario
+directory has its own numbered ``sample`` → ``generate_embeddings`` →
+``run_eval`` scripts plus a bundled ``04_end_to_end.py``.
+
 Run from the project root::
 
     python examples/01_download_dataset.py
