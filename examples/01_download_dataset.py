@@ -42,7 +42,15 @@ def main() -> None:
     print("This takes 20+ minutes on a fast connection, and resumes if it is interrupted.")
 
     dataset_dir = download(args.dataset_dir, repo_id=args.repo_id)
+
     missing = verify_dataset(dataset_dir)
+    if missing:
+        raise RuntimeError(
+            f"{len(missing)} file(s) the manifests reference are still missing (e.g. {missing[:3]}), so the "
+            f"download is incomplete and the scenario scripts would fail on them. Re-run this script to "
+            f"resume it."
+        )
+
     dataset = AgriStressDataset(dataset_dir)
     clusters = dataset.list_clusters()
 
@@ -52,16 +60,11 @@ def main() -> None:
     print(f"Files still missing   : {len(missing)}")
     print(f"First few clusters    : {clusters[:10]}")
 
-    if missing:
-        raise RuntimeError(
-            f"{len(missing)} file(s) the manifests reference are still missing (e.g. {missing[:3]}), so the "
-            f"download is incomplete and the scenario scripts would fail on them. Re-run this script to "
-            f"resume it."
-        )
-
 
 if __name__ == "__main__":
     try:
         main()
+    except FileNotFoundError as err:
+        sys.exit(f"Error: the local dataset copy is incomplete ({err}). Re-run this script; the download resumes.")
     except (ConnectionError, RuntimeError, ValueError) as err:
         sys.exit(f"Error: {err}")
