@@ -28,5 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   within its own scenario subdirectory (the default for Jupyter/VS Code notebooks) could
   trigger a fresh ~13 GB re-download of AgriStress-500 nested under that subdirectory
   instead of reusing the one already-downloaded copy.
+- `examples/dpt/` defaults cut from a 12x12 tile grid to 4x4 (and the notebook's
+  `NUM_SAMPLES` from 4 to 2, matching its own doc comment), reducing default
+  `embeddings.create` calls from 144 to 16 per run. The larger defaults could exhaust API
+  quota on a single run.
 
 [Unreleased]: https://github.com/Precision-AI-Inc/agriemb/compare/v0.1.0...HEAD

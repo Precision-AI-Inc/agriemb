@@ -151,8 +151,8 @@ resulting real per-tile vectors into a `[P, H, W]` feature map. Every value in t
 feature map is a genuine embedding from the hosted API — the tiling scheme is the only
 fabricated part, not the features. It requires `.env` / PAI API credentials like the
 other scenarios, and since each tile is a separate `embeddings.create` call, total API
-calls scale as `num_samples * grid_height * grid_width` — now a 12x12
-grid over 2 images). Label-aware metrics (on by default) additionally validate each
+calls scale as `num_samples * grid_height * grid_width` — now a 4x4
+grid over 2 images. Label-aware metrics (on by default) additionally validate each
 image's full-resolution ground-truth mask, which costs on the order of a minute per
 image — pass `--no-labels` (or set `WITH_LABELS = False` in the notebook) for a
 near-instant, unsupervised-metrics-only result instead.

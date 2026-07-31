@@ -2,7 +2,7 @@ Module Reference
 ================
 
 API documentation for the ``precisionai.agriemb`` package — configuration, dataset,
-embeddings, and evaluation.
+embeddings, evaluation, and Dense Patch Token feature maps.
 
 precisionai.agriemb.config
 ------------------------------
@@ -37,9 +37,20 @@ Image embedding generation via the PAI embedding API.
 precisionai.agriemb.evaluate
 ------------------------------
 
-Image→Image retrieval evaluation via ``agrieval``.
+Image→Image, Plant→Image, and Plant→Plant retrieval evaluation via ``agrieval``.
 
 .. automodule:: precisionai.agriemb.evaluate
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+precisionai.agriemb.dpt
+------------------------------
+
+Dense Patch Token feature maps: tile images and embed every tile via the PAI
+embedding API, then evaluate via ``agrieval``.
+
+.. automodule:: precisionai.agriemb.dpt
    :members:
    :undoc-members:
    :show-inheritance:

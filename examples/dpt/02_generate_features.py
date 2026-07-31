@@ -40,8 +40,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Build patch-token feature maps for sampled images")
     parser.add_argument("--manifest", default=str(MANIFEST_PATH), help="Sample manifest from step 01")
     parser.add_argument("--output", default=str(FEATURES_PATH), help="Where to write the feature maps JSON")
-    parser.add_argument("--grid-height", type=int, default=12, help="Patch grid height (H), in tiles")
-    parser.add_argument("--grid-width", type=int, default=12, help="Patch grid width (W), in tiles")
+    parser.add_argument("--grid-height", type=int, default=4, help="Patch grid height (H), in tiles")
+    parser.add_argument("--grid-width", type=int, default=4, help="Patch grid width (W), in tiles")
     parser.add_argument("--model", default=DEFAULT_MODEL, help="Public model id to request")
     args = parser.parse_args()
 
