@@ -12,3 +12,4 @@ pyright>=1.1
 
 # Tests
 pytest>=8.0
+httpx>=0.27

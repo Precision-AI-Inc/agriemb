@@ -10,6 +10,8 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      prerelease: ${{ steps.artifacts.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -33,7 +35,9 @@ jobs:
       # The tag is normalized to its PEP 440 form before the expected filenames
       # are built: setuptools writes the normalized version into every artifact
       # name, so comparing raw tag text would reject `v1.0.0-rc1` and
-      # `v1.0.0.rc1`, both of which are legitimate spellings of `1.0.0rc1`.
+      # `v1.0.0.rc1`, both of which are legitimate spellings of `1.0.0rc1`. The
+      # same normalized version decides whether this is a pre-release, so the
+      # release below cannot disagree with the artifact it publishes.
       - name: Check the built artifacts match the tag
         id: artifacts
         run: |
@@ -61,9 +65,11 @@ jobs:
               sys.exit(f"dist/ holds {sorted(actual)}, expected {sorted(expected)} for tag {tag}")
 
           print(f"dist/ matches tag {tag}: {sorted(actual)}")
+          prerelease = tag_version.is_prerelease or tag_version.is_devrelease
           with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as handle:
               handle.write(f"wheel=dist/{wheel}\n")
               handle.write(f"version={tag_version}\n")
+              handle.write(f"prerelease={str(prerelease).lower()}\n")
           PY
 
       # A wheel that installs and imports is the real check that the namespace
@@ -99,18 +105,9 @@ jobs:
           name: dist
           path: dist/
 
-      - name: Detect pre-release
-        id: prerelease
-        run: |
-          if [[ "${GITHUB_REF_NAME}" =~ [.]?(dev|a|b|rc)[0-9]+$ ]]; then
-            echo "value=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "value=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - uses: softprops/action-gh-release@v3
         with:
           name: ${{ github.ref_name }}
           files: dist/*
           generate_release_notes: true
-          prerelease: ${{ steps.prerelease.outputs.value }}
+          prerelease: ${{ needs.build.outputs.prerelease }}

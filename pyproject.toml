@@ -34,7 +34,6 @@ dependencies = [
     "precisionai-agristress-utils>=1.0",
     "precisionai-agrieval>=1.0",
     "openai>=1.0",
-    "httpx>=0.27",
     "python-dotenv>=1.0",
     "numpy>=1.24",
     "pillow>=10.0",
@@ -48,6 +47,7 @@ notebook = [
     "jupyter>=1.0",
 ]
 dev = [
+    "httpx>=0.27",
     "pre-commit>=3.7",
     "pyright>=1.1",
     "pytest>=8.0",

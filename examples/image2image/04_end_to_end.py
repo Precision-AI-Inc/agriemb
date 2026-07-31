@@ -82,6 +82,12 @@ def main() -> None:
     if missing:
         print(f"[1/4] {len(missing)} file(s) missing; downloading (~12 GB in full, 20+ minutes)...")
         dataset_dir = download(args.dataset_dir, repo_id=args.repo_id)
+        missing = verify_dataset(dataset_dir)
+        if missing:
+            raise RuntimeError(
+                f"{len(missing)} file(s) the manifests reference are still missing (e.g. {missing[:3]}), so the "
+                f"download is incomplete and this run would fail on them. Re-run this script to resume it."
+            )
     else:
         dataset_dir = Path(args.dataset_dir).resolve()
         print(f"[1/4] Dataset already complete at {dataset_dir}")
