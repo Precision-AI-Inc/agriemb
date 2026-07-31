@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   can detect the half-downloaded state an interrupted run leaves behind.
 - `print_evaluation()`: prints an evaluation result with undefined metrics reported as
   `n/a` instead of raising `TypeError` out of `agrieval`'s `:.4f` formatting.
+- `DEFAULT_GRID_SIZE`: the default Dense Patch Token grid, re-exported from
+  `precisionai.agriemb` so the DPT scripts and notebook take it from the package root
+  alongside the rest of the public API instead of reaching into `precisionai.agriemb.dpt`.
 - `--skip-download` on all four `04_end_to_end.py` scripts, and a `[0/4] Verifying
   dataset...` step so the wait is never silent.
 - `tests/`: offline unit tests for cluster sampling, dataset verification, data-URI
@@ -85,6 +88,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The release workflow verifies the artifacts in `dist/` and installs the built wheel,
   instead of reading a version that only resolved through a stray `*.egg-info/` left in
   the working directory.
+- The release workflow runs pre-commit, the tests and the docs build before it builds
+  anything, so a tag pushed from a commit whose checks are red can no longer publish a
+  GitHub Release. A tag can be pushed from any commit, and `ci.yml` only ever saw pushes
+  to `main` and pull requests.
 - Documented DPT runtimes replaced with measured ones: ~15 s per image label-aware
   (34 s for the two-image default), 4 s with `--no-labels`. The previous "on the order of
   a minute per image" and "near-instant" were both wrong.

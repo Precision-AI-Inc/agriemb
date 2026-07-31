@@ -35,8 +35,10 @@ jobs:
           python-version: "3.10"
           cache: pip
 
+      # `packaging` is declared explicitly rather than relied on as a
+      # transitive dependency of `build`: the artifact check below imports it.
       - name: Install build tooling
-        run: pip install build
+        run: pip install build packaging
 
       - name: Build sdist and wheel
         run: python -m build
