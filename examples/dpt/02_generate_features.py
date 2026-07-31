@@ -33,9 +33,8 @@ from pathlib import Path
 
 from openai import APIError, AuthenticationError
 
-from precisionai.agriemb import build_client, embed_patch_tokens
+from precisionai.agriemb import DEFAULT_GRID_SIZE, build_client, embed_patch_tokens
 from precisionai.agriemb.config import DEFAULT_MODEL
-from precisionai.agriemb.dpt import DEFAULT_GRID_SIZE
 from precisionai.agristress.utils import AgriStressDataset
 
 MANIFEST_PATH = Path("data/dpt_sample_manifest.json")

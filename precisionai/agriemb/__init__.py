@@ -27,7 +27,7 @@ from precisionai.agriemb.dataset import (
     sample_cluster_with_distractors,
     verify_dataset,
 )
-from precisionai.agriemb.dpt import embed_patch_tokens, run_dpt_evaluation, tile_image
+from precisionai.agriemb.dpt import DEFAULT_GRID_SIZE, embed_patch_tokens, run_dpt_evaluation, tile_image
 from precisionai.agriemb.embeddings import build_client, embed_images, image_array_to_data_uri, image_to_data_uri
 from precisionai.agriemb.evaluate import (
     print_evaluation,
@@ -37,6 +37,7 @@ from precisionai.agriemb.evaluate import (
 )
 
 __all__ = [
+    "DEFAULT_GRID_SIZE",
     "build_client",
     "download",
     "embed_images",

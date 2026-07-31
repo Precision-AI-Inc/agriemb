@@ -51,6 +51,7 @@ from pathlib import Path
 from openai import APIError, AuthenticationError
 
 from precisionai.agriemb import (
+    DEFAULT_GRID_SIZE,
     build_client,
     download,
     embed_patch_tokens,
@@ -59,7 +60,6 @@ from precisionai.agriemb import (
     verify_dataset,
 )
 from precisionai.agriemb.config import DEFAULT_DATASET_DIR, DEFAULT_MODEL, DEFAULT_REPO_ID
-from precisionai.agriemb.dpt import DEFAULT_GRID_SIZE
 from precisionai.agrieval.dpt import print_result
 from precisionai.agristress.utils import AgriStressDataset
 
