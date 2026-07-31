@@ -10,7 +10,6 @@ import time
 import warnings
 from pathlib import Path, PurePosixPath
 
-import httpx
 from pydantic import ValidationError
 
 from precisionai.agriemb.config import DEFAULT_REPO_ID
@@ -36,16 +35,21 @@ _SUGGESTION_COUNT = 8
 def _attempt_download(dataset_dir: str | Path, repo_id: str) -> Path | Exception:
     """Run one download attempt, returning the error rather than raising it.
 
-    ``huggingface_hub`` wraps most failures in an ``OSError`` subclass, but it
-    also re-raises ``httpx`` transport errors untouched mid-stream, and those
-    subclass neither ``OSError`` nor anything else :func:`download`'s callers
-    handle. Catching both families keeps a dropped connection from escaping as
-    a raw traceback. Returning the error keeps :func:`download`'s retry loop
-    free of a ``try``/``except`` in its body.
+    Every exception is caught rather than a chosen few families, because no
+    family covers what a failed download raises: ``huggingface_hub`` wraps
+    most failures in an ``OSError`` subclass and re-raises ``httpx`` transport
+    errors untouched mid-stream, but ``XetDownloadError`` derives from plain
+    ``Exception`` and an unmapped failure inside the Rust xet client surfaces
+    as a bare ``RuntimeError``. AgriStress-500 is a 12 GB xet-backed repo, so
+    a narrower catch would let the likeliest mid-download failure escape the
+    retry loop and abort a 20-minute download that resuming would have
+    finished. :func:`_is_permanent` remains the sole decider of what skips
+    retries. Returning the error keeps :func:`download`'s retry loop free of a
+    ``try``/``except`` in its body.
     """
     try:
         return download_dataset(dataset_dir, repo_id=repo_id)
-    except (OSError, httpx.HTTPError) as err:
+    except Exception as err:
         return err
 
 

@@ -44,8 +44,21 @@ def tile_image(path: Path, grid_size: tuple[int, int]) -> dict[str, Image.Image]
     -------
     dict[str, PIL.Image.Image]
         ``"<row>,<col>"`` → cropped tile image, one entry per grid cell.
+
+    Raises
+    ------
+    ValueError
+        If either ``grid_size`` component is below 1. A zero dimension would
+        otherwise slice the image into no tiles at all and return silently,
+        leaving the empty result to fail further downstream.
     """
     rows, cols = grid_size
+    if rows < 1 or cols < 1:
+        raise ValueError(
+            f"Patch grid {grid_size} must be at least 1 in both dimensions (rows, cols); a zero or negative "
+            f"dimension slices {path.name} into no tiles at all."
+        )
+
     image = Image.open(path).convert("RGB")
     width, height = image.size
 
@@ -97,8 +110,10 @@ def embed_patch_tokens(
     Raises
     ------
     ValueError
-        If *paths* is empty. An empty feature map would only fail later, and
-        less legibly, inside :func:`run_dpt_evaluation`.
+        If *paths* is empty, or if ``grid_size`` has a dimension below 1
+        (raised by :func:`tile_image` before any API call is made). Either
+        yields an empty feature map, which would only fail later, and less
+        legibly, inside :func:`run_dpt_evaluation`.
     """
     if not paths:
         raise ValueError("No images to embed: `paths` is empty, so there are no patch tokens to build.")

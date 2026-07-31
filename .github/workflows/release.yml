@@ -30,37 +30,54 @@ jobs:
       # version from `importlib.metadata` in the build checkout would instead
       # pick up the stray `*.egg-info/` that `python -m build` leaves in the
       # working directory, which passes even when `dist/` holds something else.
+      # The tag is normalized to its PEP 440 form before the expected filenames
+      # are built: setuptools writes the normalized version into every artifact
+      # name, so comparing raw tag text would reject `v1.0.0-rc1` and
+      # `v1.0.0.rc1`, both of which are legitimate spellings of `1.0.0rc1`.
       - name: Check the built artifacts match the tag
+        id: artifacts
         run: |
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
-          python - "$TAG_VERSION" <<'PY'
+          python - "$GITHUB_REF_NAME" <<'PY'
+          import os
           import sys
           from pathlib import Path
 
-          tag_version = sys.argv[1]
+          from packaging.version import InvalidVersion, Version
+
+          tag = sys.argv[1]
+          try:
+              tag_version = Version(tag.removeprefix("v"))
+          except InvalidVersion:
+              sys.exit(f"Tag {tag} is not a PEP 440 version, so no built artifact can be named after it")
+
           artifacts = sorted(Path("dist").glob("*"))
           if not artifacts:
               sys.exit("No artifacts were built into dist/")
 
-          expected = {
-              f"precisionai_agriemb-{tag_version}-py3-none-any.whl",
-              f"precisionai_agriemb-{tag_version}.tar.gz",
-          }
+          wheel = f"precisionai_agriemb-{tag_version}-py3-none-any.whl"
+          expected = {wheel, f"precisionai_agriemb-{tag_version}.tar.gz"}
           actual = {path.name for path in artifacts}
           if actual != expected:
-              sys.exit(f"dist/ holds {sorted(actual)}, expected {sorted(expected)} for tag v{tag_version}")
-          print(f"dist/ matches tag v{tag_version}: {sorted(actual)}")
+              sys.exit(f"dist/ holds {sorted(actual)}, expected {sorted(expected)} for tag {tag}")
+
+          print(f"dist/ matches tag {tag}: {sorted(actual)}")
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as handle:
+              handle.write(f"wheel=dist/{wheel}\n")
+              handle.write(f"version={tag_version}\n")
           PY
 
       # A wheel that installs and imports is the real check that the namespace
       # package was packaged correctly (no `precisionai/__init__.py`).
       - name: Install the wheel and verify it imports
+        env:
+          WHEEL: ${{ steps.artifacts.outputs.wheel }}
+          EXPECTED_VERSION: ${{ steps.artifacts.outputs.version }}
         run: |
           python -m venv /tmp/release-check
-          /tmp/release-check/bin/pip install "dist/precisionai_agriemb-${GITHUB_REF_NAME#v}-py3-none-any.whl"
+          /tmp/release-check/bin/pip install "$WHEEL"
           INSTALLED=$(/tmp/release-check/bin/python -c \
             "import importlib.metadata as m; print(m.version('precisionai-agriemb'))")
-          if [ "${GITHUB_REF_NAME#v}" != "$INSTALLED" ]; then
+          if [ "$EXPECTED_VERSION" != "$INSTALLED" ]; then
             echo "Tag $GITHUB_REF_NAME does not match installed version $INSTALLED" >&2
             exit 1
           fi

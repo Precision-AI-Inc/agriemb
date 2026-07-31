@@ -51,6 +51,11 @@ class TestTileImage:
         assert list(tiles) == ["0,0"]
         assert tiles["0,0"].size == (64, 32)
 
+    @pytest.mark.parametrize("grid_size", [(0, 8), (8, 0), (0, 0), (-1, 8)])
+    def test_rejects_a_grid_dimension_below_one(self, image_path: Path, grid_size: tuple[int, int]) -> None:
+        with pytest.raises(ValueError, match="at least 1 in both dimensions"):
+            tile_image(image_path, grid_size)
+
     def test_default_grid_is_fine_enough_for_label_aware_metrics(self) -> None:
         # A coarser grid collapses every AgriStress-500 patch label to
         # `background` on most clusters, disabling every separation metric.
@@ -62,7 +67,7 @@ class _UnusedClient:
 
     @property
     def embeddings(self) -> Any:
-        raise AssertionError("no embedding call should be made for an empty input")
+        raise AssertionError("no embedding call should be made for a degenerate input")
 
 
 class TestEmbedPatchTokens:
@@ -71,3 +76,9 @@ class TestEmbedPatchTokens:
     def test_rejects_an_empty_input_before_calling_the_api(self) -> None:
         with pytest.raises(ValueError, match="empty"):
             embed_patch_tokens(_UnusedClient(), {})
+
+    def test_rejects_a_zero_grid_dimension_before_calling_the_api(self, image_path: Path) -> None:
+        # `--grid-height 0` would otherwise embed nothing and then fail with a
+        # bare StopIteration no example script's `except` clauses catch.
+        with pytest.raises(ValueError, match="at least 1 in both dimensions"):
+            embed_patch_tokens(_UnusedClient(), {"field": image_path}, grid_size=(0, 8))

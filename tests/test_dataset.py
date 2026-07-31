@@ -279,6 +279,16 @@ class _LocalEntryNotFoundError(FileNotFoundError):
     """
 
 
+class _XetDownloadError(Exception):
+    """Stand-in for ``huggingface_hub.errors.XetDownloadError``.
+
+    Derives from plain ``Exception``, not ``OSError``, exactly as the real one
+    does. AgriStress-500 is xet-backed, so an unmapped failure in the Rust
+    transfer client is one of the likeliest mid-download failures and must not
+    escape the retry loop.
+    """
+
+
 class _StubDownload:
     """Raise the given errors on successive calls, then return *result*."""
 
@@ -347,6 +357,8 @@ class TestDownload:
             _HubHTTPError(429),
             _HubHTTPError(500),
             _HubHTTPError(503),
+            _XetDownloadError("failed to download xet blocks"),
+            RuntimeError("Data processing error: CAS service error"),
         ],
     )
     def test_retries_anything_not_positively_identified_as_permanent(
@@ -370,6 +382,22 @@ class TestDownload:
         # script as "the dataset has not been downloaded yet".
         assert not isinstance(excinfo.value, FileNotFoundError)
         assert str(excinfo.value).startswith(DOWNLOAD_INTERRUPTED_TEMPLATE.format(attempts=4))
+
+    def test_exhausted_xet_failures_give_the_same_resumable_message(
+        self, monkeypatch: pytest.MonkeyPatch, sleeps: list[float], tmp_path: Path
+    ) -> None:
+        errors: list[Exception] = [_XetDownloadError("failed to download xet blocks") for _ in range(4)]
+        stub = _install(monkeypatch, _StubDownload(errors, tmp_path))
+
+        with pytest.raises(ConnectionError) as excinfo:
+            download(tmp_path, max_attempts=4)
+
+        # An error family outside OSError/httpx must still be retried and
+        # reported as resumable rather than escaping as a raw traceback.
+        assert str(excinfo.value).startswith(DOWNLOAD_INTERRUPTED_TEMPLATE.format(attempts=4))
+        assert "failed to download xet blocks" in str(excinfo.value)
+        assert stub.calls == 4
+        assert sleeps == [5.0, 10.0, 20.0]
 
     def test_gives_up_with_a_resumable_message_naming_the_last_error(
         self, monkeypatch: pytest.MonkeyPatch, sleeps: list[float], tmp_path: Path
