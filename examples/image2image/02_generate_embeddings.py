@@ -44,7 +44,7 @@ def main() -> None:
 
     manifest = json.loads(Path(args.manifest).read_text())
     dataset_dir = Path(manifest["dataset_dir"])
-    image_ids = manifest["image_ids"] + manifest["distractor_ids"]
+    image_ids = manifest["image_ids"] + manifest.get("distractor_ids", [])
 
     dataset = AgriStressDataset(dataset_dir)
     paths = dataset.resolve_paths(image_ids)

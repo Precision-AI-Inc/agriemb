@@ -52,6 +52,13 @@ def main() -> None:
     print(f"Files still missing   : {len(missing)}")
     print(f"First few clusters    : {clusters[:10]}")
 
+    if missing:
+        raise RuntimeError(
+            f"{len(missing)} file(s) the manifests reference are still missing (e.g. {missing[:3]}), so the "
+            f"download is incomplete and the scenario scripts would fail on them. Re-run this script to "
+            f"resume it."
+        )
+
 
 if __name__ == "__main__":
     try:

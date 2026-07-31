@@ -31,7 +31,9 @@ jobs:
       # still exiting 0, shipping an API chapter with no signatures in it.
       - name: Verify the API reference is not empty
         run: |
-          SIGNATURES=$(grep -c "sig-name" docs/_build/html/modules.html)
+          # `|| true` because grep exits 1 on zero matches, which under `bash -e`
+          # would abort the step before it can say why the build is unusable.
+          SIGNATURES=$(grep -c "sig-name" docs/_build/html/modules.html || true)
           echo "Documented signatures: $SIGNATURES"
           if [ "$SIGNATURES" -lt 10 ]; then
             echo "Module Reference is empty or truncated - autodoc did not import the package." >&2

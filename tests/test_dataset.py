@@ -1,19 +1,24 @@
 # Copyright 2026 Precision AI
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for cluster sampling and dataset verification.
+"""Tests for cluster sampling, dataset verification and the download retry loop.
 
-Every test builds a synthetic AgriStress-500 layout on disk, so nothing here
-touches the 12 GB real dataset or the hosted embedding API.
+Every test builds a synthetic AgriStress-500 layout on disk and the download
+tests drive a stubbed ``download_dataset``, so nothing here touches the 12 GB
+real dataset, the HuggingFace Hub, or the hosted embedding API.
 """
 
 import json
 import warnings
 from pathlib import Path
+from typing import Any
 
 import pytest
 
+from precisionai.agriemb import dataset as dataset_module
 from precisionai.agriemb.dataset import (
+    RATE_LIMITED_MESSAGE,
+    download,
     sample_cluster,
     sample_cluster_instances,
     sample_cluster_with_distractors,
@@ -203,6 +208,12 @@ class TestVerifyDataset:
 
         assert verify_dataset(dataset_root) == ["masks/A1/pai-A1000.png"]
 
+    def test_accepts_a_mask_whose_extension_differs_from_its_image(self, dataset_root: Path) -> None:
+        for mask in (dataset_root / "masks").rglob("*.png"):
+            mask.rename(mask.with_suffix(".jpg"))
+
+        assert verify_dataset(dataset_root) == []
+
     def test_reports_a_missing_instance_crop(self, dataset_root: Path) -> None:
         (dataset_root / _instance_id("A1", 0, 0)).unlink()
 
@@ -220,3 +231,114 @@ class TestVerifyDataset:
             "plant2plant.json",
             "class_map.json",
         ]
+
+
+class _Response:
+    """Minimal stand-in for the HTTP response the Hub attaches to its errors."""
+
+    def __init__(self, status_code: int) -> None:
+        self.status_code = status_code
+
+
+class _HubHTTPError(OSError):
+    """``OSError`` carrying a response, the way ``huggingface_hub.HfHubHTTPError`` does."""
+
+    def __init__(self, status_code: int) -> None:
+        super().__init__(f"{status_code} Error for url: https://huggingface.co/datasets/does-not/exist")
+        self.response = _Response(status_code)
+
+
+class _StubDownload:
+    """Raise the given errors on successive calls, then return *result*."""
+
+    def __init__(self, errors: list[OSError], result: Path) -> None:
+        self.errors = list(errors)
+        self.result = result
+        self.calls = 0
+
+    def __call__(self, dataset_dir: Any, repo_id: str) -> Path:
+        self.calls += 1
+        if self.errors:
+            raise self.errors.pop(0)
+        return self.result
+
+
+@pytest.fixture
+def sleeps(monkeypatch: pytest.MonkeyPatch) -> list[float]:
+    """Record every backoff sleep instead of performing it."""
+    recorded: list[float] = []
+    monkeypatch.setattr(dataset_module.time, "sleep", recorded.append)
+    return recorded
+
+
+def _install(monkeypatch: pytest.MonkeyPatch, stub: _StubDownload) -> _StubDownload:
+    """Route :func:`precisionai.agriemb.dataset.download` through *stub*."""
+    monkeypatch.setattr(dataset_module, "download_dataset", stub)
+    return stub
+
+
+class TestDownload:
+    """Tests for :func:`precisionai.agriemb.dataset.download`'s retry loop."""
+
+    def test_returns_the_directory_without_retrying_on_success(
+        self, monkeypatch: pytest.MonkeyPatch, sleeps: list[float], tmp_path: Path
+    ) -> None:
+        stub = _install(monkeypatch, _StubDownload([], tmp_path))
+
+        assert download(tmp_path) == tmp_path
+        assert stub.calls == 1
+        assert sleeps == []
+
+    def test_retries_a_rate_limited_attempt_with_exponential_backoff(
+        self, monkeypatch: pytest.MonkeyPatch, sleeps: list[float], tmp_path: Path
+    ) -> None:
+        stub = _install(monkeypatch, _StubDownload([_HubHTTPError(429), _HubHTTPError(503)], tmp_path))
+
+        assert download(tmp_path) == tmp_path
+        assert stub.calls == 3
+        assert sleeps == [5.0, 10.0]
+
+    def test_retries_a_connection_error(
+        self, monkeypatch: pytest.MonkeyPatch, sleeps: list[float], tmp_path: Path
+    ) -> None:
+        stub = _install(monkeypatch, _StubDownload([ConnectionResetError("connection reset by peer")], tmp_path))
+
+        assert download(tmp_path) == tmp_path
+        assert stub.calls == 2
+
+    def test_gives_up_with_a_resumable_message_naming_the_last_error(
+        self, monkeypatch: pytest.MonkeyPatch, sleeps: list[float], tmp_path: Path
+    ) -> None:
+        stub = _install(monkeypatch, _StubDownload([_HubHTTPError(429) for _ in range(4)], tmp_path))
+
+        with pytest.raises(ConnectionError) as excinfo:
+            download(tmp_path, max_attempts=4)
+
+        assert str(excinfo.value).startswith(RATE_LIMITED_MESSAGE)
+        assert "429" in str(excinfo.value)
+        assert stub.calls == 4
+        assert sleeps == [5.0, 10.0, 20.0]
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            _HubHTTPError(404),
+            _HubHTTPError(401),
+            _HubHTTPError(403),
+            PermissionError("Permission denied: 'data'"),
+            OSError(28, "No space left on device"),
+        ],
+    )
+    def test_does_not_retry_or_mislabel_a_failure_a_retry_cannot_fix(
+        self, monkeypatch: pytest.MonkeyPatch, sleeps: list[float], tmp_path: Path, error: OSError
+    ) -> None:
+        stub = _install(monkeypatch, _StubDownload([error], tmp_path))
+
+        with pytest.raises(RuntimeError) as excinfo:
+            download(tmp_path)
+
+        assert RATE_LIMITED_MESSAGE not in str(excinfo.value)
+        assert str(error) in str(excinfo.value)
+        assert excinfo.value.__cause__ is error
+        assert stub.calls == 1
+        assert sleeps == []

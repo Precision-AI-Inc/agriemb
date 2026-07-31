@@ -3,11 +3,12 @@
 
 """Dataset download and cluster sampling built on ``agristress-utils``."""
 
+import glob
 import random
 import sys
 import time
 import warnings
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from pydantic import ValidationError
 
@@ -19,6 +20,11 @@ DOWNLOAD_INITIAL_BACKOFF_SECONDS = 5.0
 
 RATE_LIMITED_MESSAGE = "Download interrupted (rate-limited). It is resumable - re-run this script."
 
+# Non-5xx HTTP statuses a later attempt could still succeed on. Everything
+# else with a status (401, 403, 404, ...) fails the same way however often it
+# is retried.
+_TRANSIENT_HTTP_STATUS = frozenset({408, 425, 429})
+
 # Files the dataset root must contain before any cluster can be enumerated.
 _REQUIRED_MANIFESTS = ("image2image.json", "plant2image.json", "plant2plant.json", "class_map.json")
 
@@ -27,16 +33,45 @@ _SUGGESTION_COUNT = 8
 
 
 def _attempt_download(dataset_dir: str | Path, repo_id: str) -> Path | OSError:
-    """Run one download attempt, returning the network error rather than raising it.
+    """Run one download attempt, returning the error rather than raising it.
 
-    Rate limits, connection resets and timeouts all subclass ``OSError``.
-    Returning the error keeps :func:`download`'s retry loop free of a
-    ``try``/``except`` in its body.
+    Rate limits, connection resets, timeouts and HTTP errors from the Hub all
+    subclass ``OSError``, as do permission and disk-space failures;
+    :func:`_is_transient` tells them apart. Returning the error keeps
+    :func:`download`'s retry loop free of a ``try``/``except`` in its body.
     """
     try:
         return download_dataset(dataset_dir, repo_id=repo_id)
     except OSError as err:
         return err
+
+
+def _is_transient(error: OSError) -> bool:
+    """Report whether a failed download attempt could succeed if it were retried.
+
+    ``huggingface_hub``, ``httpx`` and the xet client raise unrelated
+    exception classes that share only ``OSError`` as an ancestor, so the
+    decision is made on the HTTP status when the error carries a response and
+    on the exception type otherwise. A gated or missing repo, a rejected
+    token, a read-only directory or a full disk is never retried: it would
+    fail identically on every attempt and reporting it as rate limiting sends
+    the user off to re-run a command that cannot work.
+
+    Parameters
+    ----------
+    error : OSError
+        The error a download attempt failed with.
+
+    Returns
+    -------
+    bool
+        True for rate limits, server-side failures and connection or timeout
+        errors; False for everything else.
+    """
+    status = getattr(getattr(error, "response", None), "status_code", None)
+    if isinstance(status, int):
+        return status in _TRANSIENT_HTTP_STATUS or status >= 500
+    return isinstance(error, ConnectionError | TimeoutError)
 
 
 def download(
@@ -48,9 +83,12 @@ def download(
 
     The dataset is ~12 GB across 4950 files and takes 20+ minutes to fetch on
     a fast connection. HuggingFace rate-limits (HTTP 429) partway through
-    often enough that a single attempt is unreliable, so failed attempts are
-    retried with exponential backoff. Every attempt resumes from whatever is
-    already on disk, so re-running after a failure never restarts from zero.
+    often enough that a single attempt is unreliable, so transient failures
+    are retried with exponential backoff. Every attempt resumes from whatever
+    is already on disk, so re-running after a failure never restarts from
+    zero. Failures a retry cannot fix (a missing or gated repo, a rejected
+    token, a read-only directory, a full disk) are reported immediately
+    instead, since backing off and re-running only delays the same error.
 
     Parameters
     ----------
@@ -69,14 +107,22 @@ def download(
     Raises
     ------
     ConnectionError
-        If every attempt failed with a network error. Whatever was already
-        downloaded stays on disk, so re-running resumes from there.
+        If every attempt failed with a transient network error. Whatever was
+        already downloaded stays on disk, so re-running resumes from there.
+    RuntimeError
+        If an attempt failed with an error a retry cannot fix. The underlying
+        error is named in the message and chained as the cause.
     """
     last_error: OSError | None = None
     for attempt in range(1, max_attempts + 1):
         outcome = _attempt_download(dataset_dir, repo_id)
         if not isinstance(outcome, OSError):
             return outcome
+        if not _is_transient(outcome):
+            raise RuntimeError(
+                f"Downloading {repo_id} into {dataset_dir} failed for a reason retrying cannot fix, so it "
+                f"was not retried: {outcome}"
+            ) from outcome
 
         last_error = outcome
         if attempt < max_attempts:
@@ -87,7 +133,38 @@ def download(
             )
             time.sleep(backoff)
 
-    raise ConnectionError(RATE_LIMITED_MESSAGE) from last_error
+    raise ConnectionError(f"{RATE_LIMITED_MESSAGE} Last error: {last_error}") from last_error
+
+
+def _missing_masks(root: Path, image_ids: list[str]) -> list[str]:
+    """Return the dataset-relative mask paths no file on disk answers to.
+
+    Masks mirror the image tree (``images/A1/pai-x.png`` ->
+    ``masks/A1/pai-x.*``) but nothing guarantees they share the image's file
+    extension, so each one is resolved by stem the way ``agrieval`` resolves
+    its own ground-truth masks. Substituting the image extension instead
+    would report every mask in a complete dataset as missing.
+
+    Parameters
+    ----------
+    root : Path
+        Local dataset directory.
+    image_ids : list[str]
+        Dataset-relative image ids whose masks to look for.
+
+    Returns
+    -------
+    list[str]
+        The expected mask paths that resolved to nothing, named after their
+        image so the message points at a real dataset entry.
+    """
+    missing: list[str] = []
+    for image_id in image_ids:
+        relative = PurePosixPath(image_id.split("/", 1)[1])
+        candidates = (root / "masks" / relative.parent).glob(f"{glob.escape(relative.stem)}.*")
+        if not any(candidate.is_file() for candidate in candidates):
+            missing.append(f"masks/{relative}")
+    return missing
 
 
 def verify_dataset(dataset_dir: str | Path) -> list[str]:
@@ -118,14 +195,13 @@ def verify_dataset(dataset_dir: str | Path) -> list[str]:
 
     dataset = AgriStressDataset(root)
     image_ids = dataset.list_image_ids()
-    # Masks mirror the image tree: `images/A1/pai-x.png` -> `masks/A1/pai-x.png`.
-    mask_ids = [f"masks/{image_id.split('/', 1)[1]}" for image_id in image_ids]
 
-    return [
+    missing = [
         relative_path
-        for relative_path in [*image_ids, *mask_ids, *dataset.list_instance_ids()]
+        for relative_path in [*image_ids, *dataset.list_instance_ids()]
         if not (root / relative_path).is_file()
     ]
+    return missing + _missing_masks(root, image_ids)
 
 
 def _clusters_with_min_images(dataset: AgriStressDataset, minimum: int) -> list[str]:
@@ -135,22 +211,25 @@ def _clusters_with_min_images(dataset: AgriStressDataset, minimum: int) -> list[
 
 
 def _clusters_with_instances(dataset: AgriStressDataset) -> list[str]:
-    """Return cluster ids whose image metadata parses and that own at least one instance crop.
+    """Return cluster ids whose image metadata parses and that own instance crops, largest first.
 
     27 of AgriStress-500's 121 clusters have no instance crops at all and a
     further 14 cannot be parsed by ``agristress-utils`` (see
     :func:`sample_cluster_instances`), so a third of the dataset is unusable
-    for the Plant->Image and Plant->Plant scenarios.
+    for the Plant->Image and Plant->Plant scenarios. Ordering by crop count
+    keeps the clusters these ids are suggested as replacements for from being
+    swapped for an equally degenerate one-image cluster.
     """
-    viable: list[str] = []
+    sizes: dict[str, int] = {}
     for cluster in dataset.list_clusters():
         try:
             records = dataset.image_metadata(dataset.list_image_ids(cluster=cluster))
         except ValidationError:
             continue
-        if any(record.instances for record in records):
-            viable.append(cluster)
-    return viable
+        total_instances = sum(len(record.instances) for record in records)
+        if total_instances:
+            sizes[cluster] = total_instances
+    return [cluster for cluster, _ in sorted(sizes.items(), key=lambda item: -item[1])]
 
 
 def sample_cluster(
