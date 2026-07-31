@@ -19,7 +19,7 @@ from precisionai.agristress.utils import AgriStressDataset, download_dataset
 DOWNLOAD_MAX_ATTEMPTS = 4
 DOWNLOAD_INITIAL_BACKOFF_SECONDS = 5.0
 
-RATE_LIMITED_MESSAGE = "Download interrupted (rate-limited). It is resumable - re-run this script."
+DOWNLOAD_INTERRUPTED_TEMPLATE = "Download interrupted after {attempts} attempts. It is resumable - re-run this script."
 
 # HTTP statuses that identify a request no retry can turn into a success: a
 # missing repo, a gated repo, or a rejected token. Every other status,
@@ -145,7 +145,8 @@ def download(
             )
             time.sleep(backoff)
 
-    raise ConnectionError(f"{RATE_LIMITED_MESSAGE} Last error: {last_error}") from last_error
+    headline = DOWNLOAD_INTERRUPTED_TEMPLATE.format(attempts=max_attempts)
+    raise ConnectionError(f"{headline} Last error: {last_error}") from last_error
 
 
 def _missing_masks(root: Path, image_ids: list[str]) -> list[str]:
@@ -157,6 +158,11 @@ def _missing_masks(root: Path, image_ids: list[str]) -> list[str]:
     tree, because assuming either would report every mask in a complete
     dataset as missing if the real dataset disagreed. The whole of ``masks/``
     is indexed in one walk rather than globbed once per image.
+
+    Real ids are ``images/<cluster>/<file>``, and the leading component is
+    dropped to name the mask. An id carrying no separator at all is used whole
+    rather than raising an ``IndexError``, since this check now runs first in
+    every example script and none of them handle one.
 
     Parameters
     ----------
@@ -174,7 +180,7 @@ def _missing_masks(root: Path, image_ids: list[str]) -> list[str]:
     stems = {path.stem for path in (root / "masks").rglob("*") if path.is_file()}
     return [
         f"masks/{relative}"
-        for relative in (PurePosixPath(image_id.split("/", 1)[1]) for image_id in image_ids)
+        for relative in (PurePosixPath(image_id.partition("/")[2] or image_id) for image_id in image_ids)
         if relative.stem not in stems
     ]
 
@@ -183,7 +189,7 @@ def verify_dataset(dataset_dir: str | Path) -> list[str]:
     """Report which files the AgriStress-500 manifests reference but that are absent on disk.
 
     Lets callers skip a completed download instead of re-walking all 4950
-    files, and catches the half-downloaded state a rate-limited run leaves
+    files, and catches the half-downloaded state an interrupted run leaves
     behind (see :func:`download`) rather than failing later with a missing
     image or mask.
 

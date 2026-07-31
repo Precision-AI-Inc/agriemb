@@ -57,7 +57,6 @@ def main() -> None:
     print(f"Dataset downloaded to : {dataset_dir}")
     print(f"Clusters found        : {len(clusters)}")
     print(f"Images total          : {len(dataset.list_image_ids())}")
-    print(f"Files still missing   : {len(missing)}")
     print(f"First few clusters    : {clusters[:10]}")
 
 

@@ -18,7 +18,7 @@ import pytest
 
 from precisionai.agriemb import dataset as dataset_module
 from precisionai.agriemb.dataset import (
-    RATE_LIMITED_MESSAGE,
+    DOWNLOAD_INTERRUPTED_TEMPLATE,
     download,
     sample_cluster,
     sample_cluster_instances,
@@ -229,6 +229,13 @@ class TestVerifyDataset:
 
         assert verify_dataset(dataset_root) == []
 
+    def test_reports_a_separator_less_image_id_instead_of_raising(self, dataset_root: Path) -> None:
+        manifest = json.loads((dataset_root / "image2image.json").read_text())
+        manifest["metadata"]["A1"]["images"] = ["stray.png"]
+        (dataset_root / "image2image.json").write_text(json.dumps(manifest))
+
+        assert verify_dataset(dataset_root) == ["stray.png", "masks/stray.png"]
+
     def test_reports_a_missing_instance_crop(self, dataset_root: Path) -> None:
         (dataset_root / _instance_id("A1", 0, 0)).unlink()
 
@@ -362,7 +369,7 @@ class TestDownload:
         # A bare FileNotFoundError here would be reported by every example
         # script as "the dataset has not been downloaded yet".
         assert not isinstance(excinfo.value, FileNotFoundError)
-        assert str(excinfo.value).startswith(RATE_LIMITED_MESSAGE)
+        assert str(excinfo.value).startswith(DOWNLOAD_INTERRUPTED_TEMPLATE.format(attempts=4))
 
     def test_gives_up_with_a_resumable_message_naming_the_last_error(
         self, monkeypatch: pytest.MonkeyPatch, sleeps: list[float], tmp_path: Path
@@ -372,7 +379,7 @@ class TestDownload:
         with pytest.raises(ConnectionError) as excinfo:
             download(tmp_path, max_attempts=4)
 
-        assert str(excinfo.value).startswith(RATE_LIMITED_MESSAGE)
+        assert str(excinfo.value).startswith(DOWNLOAD_INTERRUPTED_TEMPLATE.format(attempts=4))
         assert "429" in str(excinfo.value)
         assert stub.calls == 4
         assert sleeps == [5.0, 10.0, 20.0]
@@ -395,7 +402,7 @@ class TestDownload:
         with pytest.raises(RuntimeError) as excinfo:
             download(tmp_path)
 
-        assert RATE_LIMITED_MESSAGE not in str(excinfo.value)
+        assert "It is resumable" not in str(excinfo.value)
         assert str(error) in str(excinfo.value)
         assert excinfo.value.__cause__ is error
         assert stub.calls == 1

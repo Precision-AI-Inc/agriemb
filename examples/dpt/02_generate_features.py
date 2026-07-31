@@ -31,7 +31,7 @@ import json
 import sys
 from pathlib import Path
 
-from openai import AuthenticationError
+from openai import APIError, AuthenticationError
 
 from precisionai.agriemb import build_client, embed_patch_tokens
 from precisionai.agriemb.config import DEFAULT_MODEL
@@ -84,5 +84,7 @@ if __name__ == "__main__":
         sys.exit(f"Error: {err}\nRun `python examples/dpt/01_sample_cluster.py` first.")
     except AuthenticationError:
         sys.exit("Error: the PAI embedding API rejected PAI_EMBEDDINGS_API_KEY. Check .env against .env.example.")
+    except APIError as err:
+        sys.exit(f"Error: the PAI embedding API call failed ({err}). Wait a moment and re-run this script.")
     except (ConnectionError, RuntimeError, ValueError) as err:
         sys.exit(f"Error: {err}")

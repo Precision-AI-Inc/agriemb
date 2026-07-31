@@ -104,7 +104,10 @@ def print_evaluation(result: dict) -> None:
     reports for a metric a degenerate sample leaves undefined (``alignment``
     with no positive pairs, for instance) — losing the whole summary to a
     traceback. Undefined metrics are pulled out and listed as ``n/a``
-    instead, so the rest of the report still prints.
+    instead, so the rest of the report still prints. They are printed after
+    the rest of the report rather than in place, so each is named with the
+    section it belongs to and does not read as part of the last per-class
+    block.
 
     Also terminates the ``k-NN graph`` progress bar ``agrieval`` leaves open
     on stderr, which would otherwise collide with the first summary line.
@@ -123,8 +126,10 @@ def print_evaluation(result: dict) -> None:
     printable["global_metrics"] = {name: value for name, value in global_metrics.items() if name not in undefined}
     print_result(printable)
 
+    if undefined:
+        print()
     for name in undefined:
-        print(f"  {name:<19}: n/a  (undefined for this sample)")
+        print(f"  global_metrics.{name:<19}: n/a  (undefined for this sample)")
 
 
 def run_i2i_evaluation(

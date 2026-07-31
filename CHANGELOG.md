@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   clusters, so Image→Image retrieval has negatives to rank below the positives.
 - `verify_dataset()`: reports which manifest-referenced files are missing on disk, so the
   example scripts can skip a completed download instead of re-walking all 4950 files, and
-  can detect the half-downloaded state a rate-limited run leaves behind.
+  can detect the half-downloaded state an interrupted run leaves behind.
 - `print_evaluation()`: prints an evaluation result with undefined metrics reported as
   `n/a` instead of raising `TypeError` out of `agrieval`'s `:.4f` formatting.
 - `--skip-download` on all four `04_end_to_end.py` scripts, and a `[0/4] Verifying
@@ -59,9 +59,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docs/Makefile`'s `html` target passes `-W --keep-going`, so an autodoc import failure
   is now fatal rather than a warning under a green build.
 - `download()` retries transient network failures with exponential backoff and, when it
-  gives up, raises a one-line "Download interrupted (rate-limited). It is resumable -
-  re-run this script." instead of a 40-line traceback. The download is resumable, which
-  nothing previously said.
+  gives up, raises a one-line "Download interrupted after N attempts. It is resumable -
+  re-run this script." naming the real underlying error, instead of a 40-line traceback.
+  The download is resumable, which nothing previously said.
 - `sample_cluster_instances()` rejects clusters with no instance crops (27 of 121) and
   re-raises the pydantic `ValidationError` from clusters with a null `camera_source`
   (14 of 121) as a message naming usable clusters. Previously the first produced a
