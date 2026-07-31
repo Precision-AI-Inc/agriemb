@@ -1,21 +1,25 @@
 # Copyright 2026 Precision AI
 # SPDX-License-Identifier: Apache-2.0
 
-"""End-to-end demo: download → sample a cluster → embed → evaluate.
+"""End-to-end demo: sample a cluster → embed → evaluate Image→Image.
 
-Chains the same steps as ``01_download_dataset.py`` through
-``04_run_image2image_eval.py`` in a single process, without intermediate
-JSON manifests — a compact reference for using ``precisionai.agriemb`` to wire
-``agristress-utils``, the PAI embedding API (https://embeddings.precision.ai/),
-and ``agrieval`` together.
+Chains the same steps as ``01_sample_cluster.py`` through ``03_run_eval.py``
+in a single process, without intermediate JSON manifests — a compact
+reference for using ``precisionai.agriemb`` to wire ``agristress-utils``, the
+PAI embedding API (https://embeddings.precision.ai/), and ``agrieval``
+together for the Image→Image retrieval scenario (how well one field image's
+embedding retrieves other images from the same L2 cluster).
+
+See also ``examples/plant2image/04_end_to_end.py`` and
+``examples/plant2plant/04_end_to_end.py`` for the sibling scenarios.
 
 Requires ``PAI_EMBEDDINGS_API_KEY`` and ``PAI_EMBEDDINGS_BASE_URL`` — copy
 ``.env.example`` to ``.env`` and fill them in.
 
-Run from the project root::
+Run from the project root (after ``examples/01_download_dataset.py``)::
 
-    python examples/05_end_to_end.py
-    python examples/05_end_to_end.py --cluster A1 --num-samples 12
+    python examples/image2image/04_end_to_end.py
+    python examples/image2image/04_end_to_end.py --cluster A1 --num-samples 12
 """
 
 import argparse
@@ -27,7 +31,7 @@ from precisionai.agristress.utils import AgriStressDataset, normalize_embeddings
 
 
 def main() -> None:
-    """Run the full download-sample-embed-evaluate pipeline."""
+    """Run the full download-sample-embed-evaluate pipeline for Image→Image."""
     parser = argparse.ArgumentParser(description="End-to-end AgriStress-500 Image2Image demo")
     parser.add_argument("--dataset-dir", default=str(DEFAULT_DATASET_DIR), help="Local dataset directory")
     parser.add_argument("--repo-id", default=DEFAULT_REPO_ID, help="HuggingFace dataset repo id")

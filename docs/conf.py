@@ -1,3 +1,6 @@
+# Copyright 2026 Precision AI
+# SPDX-License-Identifier: Apache-2.0
+
 # Configuration file for the Sphinx documentation builder.
 # See https://www.sphinx-doc.org/en/master/usage/configuration.html
 
@@ -54,6 +57,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
     "sphinx.ext.intersphinx",
+    "sphinx_autodoc_typehints",
 ]
 
 # Support Markdown files alongside RST.
@@ -74,7 +78,7 @@ napoleon_include_private_with_doc = False
 napoleon_include_special_with_doc = True
 
 # -- Options for HTML output --------------------------------------------------
-html_theme = "alabaster"
+html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
 
 # -- Options for LaTeX/PDF output ---------------------------------------------
