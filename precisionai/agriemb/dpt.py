@@ -94,7 +94,7 @@ def embed_patch_tokens(
     all_tiles: dict[str, Path | Image.Image] = {
         f"{image_id}::{key}": tile for image_id, tiles in tiles_by_image.items() for key, tile in tiles.items()
     }
-    tile_embeddings = embed_images(client, all_tiles, model=model)
+    tile_embeddings = embed_images(client, all_tiles, model=model, batch_size=1)
     embed_dim = len(next(iter(tile_embeddings.values())))
 
     images: dict[str, list[Any]] = {}

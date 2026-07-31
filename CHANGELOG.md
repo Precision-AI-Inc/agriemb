@@ -33,4 +33,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `embeddings.create` calls from 144 to 16 per run. The larger defaults could exhaust API
   quota on a single run.
 
-[Unreleased]: https://github.com/Precision-AI-Inc/agriemb/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/Precision-AI-Inc/agriemb/commits/main
