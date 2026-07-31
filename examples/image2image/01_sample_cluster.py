@@ -26,7 +26,7 @@ Run from the project root (after ``examples/01_download_dataset.py``)::
 import argparse
 import json
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from precisionai.agriemb import sample_cluster_with_distractors
 from precisionai.agriemb.config import DEFAULT_DATASET_DIR
@@ -82,7 +82,9 @@ def main() -> None:
         )
     )
 
-    distractor_clusters = sorted({distractor_id.split("/")[1] for distractor_id in distractors})
+    distractor_clusters = sorted(
+        {PurePosixPath(distractor_id).parent.name or distractor_id for distractor_id in distractors}
+    )
     print(f"Query cluster       : {cluster} ({len(dataset.list_image_ids(cluster=cluster))} images available)")
     print(f"Query images        : {len(sample)}")
     for image_id in sample:

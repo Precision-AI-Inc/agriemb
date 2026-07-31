@@ -18,7 +18,9 @@ Class diversity depends on the chosen cluster — most L2 clusters contain a
 single dominant plant label, some contain several. ``--cluster`` defaults to
 ``G2``, which carries three distinct labels; with a single-label cluster every
 crop is a positive and the metrics saturate at 1.0000 without measuring
-anything.
+anything. ``G2`` is the only three-label cluster; ``J1`` (12 images, 189
+instance crops, ``Crop | Lentil`` and ``Weed | Grass``) is the two-label
+alternative shown below.
 
 See also ``examples/image2image/04_end_to_end.py`` and
 ``examples/plant2image/04_end_to_end.py`` for the sibling scenarios.

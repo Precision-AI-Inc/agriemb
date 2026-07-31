@@ -10,7 +10,9 @@ Class diversity depends on the chosen cluster — most L2 clusters contain a
 single dominant plant label, some contain several. The default is ``G2``,
 which carries three distinct labels (two weeds and one crop); with a
 single-label cluster every crop is a positive and the metrics saturate at
-1.0000 without measuring anything.
+1.0000 without measuring anything. ``G2`` is the only three-label cluster;
+``J1`` (12 images, 189 instance crops, ``Crop | Lentil`` and ``Weed | Grass``)
+is the two-label alternative shown below.
 
 Run from the project root (after ``examples/01_download_dataset.py``)::
 
