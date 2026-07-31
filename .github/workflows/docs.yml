@@ -1,0 +1,39 @@
+name: Docs
+
+on:
+  workflow_call:
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      # `fetch-depth: 0` so `docs/conf.py` can read the version from the git tag.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install -e .
+          pip install -r docs/requirements.txt
+
+      # `make html` passes `-W --keep-going`, so an autodoc import failure is fatal.
+      - name: Build HTML docs
+        run: make -C docs html
+
+      # A green build is not enough: autodoc used to fail every directive while
+      # still exiting 0, shipping an API chapter with no signatures in it.
+      - name: Verify the API reference is not empty
+        run: |
+          SIGNATURES=$(grep -c "sig-name" docs/_build/html/modules.html)
+          echo "Documented signatures: $SIGNATURES"
+          if [ "$SIGNATURES" -lt 10 ]; then
+            echo "Module Reference is empty or truncated - autodoc did not import the package." >&2
+            exit 1
+          fi

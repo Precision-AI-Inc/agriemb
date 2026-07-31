@@ -37,6 +37,8 @@ dependencies = [
     "python-dotenv>=1.0",
     "numpy>=1.24",
     "pillow>=10.0",
+    "pydantic>=2.0",
+    "tqdm>=4.65",
 ]
 
 [project.optional-dependencies]
@@ -47,6 +49,7 @@ notebook = [
 dev = [
     "pre-commit>=3.7",
     "pyright>=1.1",
+    "pytest>=8.0",
 ]
 
 [project.urls]
@@ -58,6 +61,14 @@ Changelog = "https://github.com/Precision-AI-Inc/agriemb/blob/main/CHANGELOG.md"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["precisionai*"]
+# `precisionai` is a PEP 420 namespace package shared with the sibling
+# `precisionai-agristress-utils` and `precisionai-agrieval` distributions. It
+# must have no `__init__.py`: one would make it a regular package, so whichever
+# copy is found first on sys.path would hide the other distributions' subpackages.
+namespaces = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [tool.setuptools_scm]
 version_scheme = "no-guess-dev"
@@ -111,6 +122,8 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "**/__init__.py" = ["F401"]
 "docs/conf.py"   = ["E402", "UP031", "ANN", "S"]
+# Tests: `assert` is the point, and each test's name is its documentation.
+"tests/**"       = ["S101", "D102"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"

@@ -6,28 +6,39 @@
 Writes the selection to a JSON manifest that ``02_generate_embeddings.py``
 reads.
 
+The default cluster is one that is both well populated and usable. Only 80 of
+AgriStress-500's 121 clusters work here at all: 27 own no instance crops (so
+there would be nothing to retrieve) and 14 cannot be parsed by
+``agristress-utils``, so a random cluster fails or degenerates about a third
+of the time.
+
 Run from the project root (after ``examples/01_download_dataset.py``)::
 
     python examples/plant2image/01_sample_cluster_instances.py
-    python examples/plant2image/01_sample_cluster_instances.py --cluster A1 --num-samples 3
+    python examples/plant2image/01_sample_cluster_instances.py --cluster C1 --num-samples 3
 """
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 from precisionai.agriemb import sample_cluster_instances
 from precisionai.agriemb.config import DEFAULT_DATASET_DIR
 from precisionai.agristress.utils import AgriStressDataset
 
+DEFAULT_CLUSTER = "A1"
 MANIFEST_PATH = Path("data/plant2image_sample_manifest.json")
 
 
 def main() -> None:
     """Sample a cluster's parent images and instance crops, and write the selection manifest."""
-    parser = argparse.ArgumentParser(description="Sample parent images and instance crops from one L2 cluster")
+    parser = argparse.ArgumentParser(
+        description="Sample parent images and instance crops from one L2 cluster",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
     parser.add_argument("--dataset-dir", default=str(DEFAULT_DATASET_DIR), help="Local dataset directory")
-    parser.add_argument("--cluster", default=None, help="L2 cluster to sample from (default: random)")
+    parser.add_argument("--cluster", default=DEFAULT_CLUSTER, help="L2 cluster to sample from")
     parser.add_argument("--num-samples", type=int, default=3, help="Number of parent images to sample")
     parser.add_argument(
         "--max-instances-per-image", type=int, default=4, help="Max instance crops to keep per parent image"
@@ -67,4 +78,9 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except FileNotFoundError as err:
+        sys.exit(f"Error: {err}\nRun `python examples/01_download_dataset.py` first.")
+    except (RuntimeError, ValueError) as err:
+        sys.exit(f"Error: {err}")

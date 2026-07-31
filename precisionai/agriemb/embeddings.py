@@ -12,6 +12,7 @@ from typing import Any, Protocol
 
 from openai import OpenAI
 from PIL.Image import Image
+from tqdm import tqdm
 
 from precisionai.agriemb.config import DEFAULT_MODEL, EMBEDDING_BATCH_SIZE, get_api_key, get_base_url
 
@@ -107,6 +108,7 @@ def embed_images(
     images: Mapping[str, Path | Image],
     model: str = DEFAULT_MODEL,
     batch_size: int = EMBEDDING_BATCH_SIZE,
+    progress: bool = True,
 ) -> dict[str, list[float]]:
     """Embed every image in *images* through the PAI embedding API.
 
@@ -122,6 +124,11 @@ def embed_images(
         Public model id to request.
     batch_size : int
         Maximum number of images sent per ``embeddings.create`` call.
+    progress : bool
+        Show a progress bar over the batches. Each batch is a full-resolution
+        round-trip taking several seconds, so a dozen images is a minute of
+        otherwise silent waiting and the tiling path in
+        :func:`precisionai.agriemb.dpt.embed_patch_tokens` is far longer.
 
     Returns
     -------
@@ -131,7 +138,8 @@ def embed_images(
     image_ids = list(images)
     embeddings: dict[str, list[float]] = {}
 
-    for start in range(0, len(image_ids), batch_size):
+    batch_starts = range(0, len(image_ids), batch_size)
+    for start in tqdm(batch_starts, desc="Embedding", unit="batch", disable=not progress):
         batch_ids = image_ids[start : start + batch_size]
         data_uris = [_any_image_to_data_uri(images[image_id]) for image_id in batch_ids]
         response = client.embeddings.create(model=model, input=data_uris)

@@ -8,10 +8,13 @@ them with ``precisionai.agriemb.run_dpt_evaluation`` (which pairs them with
 the AgriStress-500 dataset's ground-truth segmentation masks and class map,
 then calls ``run_dpt_image_eval`` from ``agrieval``).
 
-By default this validates each image's full-resolution ground-truth mask
-for label-aware metrics, which costs on the order of a minute per image —
-pass ``--no-labels`` to skip masks entirely for a near-instant,
-unsupervised-metrics-only result.
+By default this validates each image's full-resolution ground-truth mask for
+label-aware metrics, which costs roughly 15 s per image; pass ``--no-labels``
+to skip masks entirely for an unsupervised-metrics-only result. Measured on
+the two-image default: 34 s label-aware, 4 s with ``--no-labels``.
+
+The result JSON is written before the summary is printed, so a formatting
+failure can never discard a completed evaluation.
 
 Run from the project root (after ``02_generate_features.py``)::
 
@@ -21,6 +24,7 @@ Run from the project root (after ``02_generate_features.py``)::
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 from precisionai.agriemb import run_dpt_evaluation
@@ -31,15 +35,18 @@ EVAL_RESULT_PATH = Path("data/dpt_result.json")
 
 
 def main() -> None:
-    """Run the Dense Patch Token evaluation and print/save the result."""
-    parser = argparse.ArgumentParser(description="Run DPT evaluation on generated feature maps")
+    """Run the Dense Patch Token evaluation, save the result, then print it."""
+    parser = argparse.ArgumentParser(
+        description="Run DPT evaluation on generated feature maps",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
     parser.add_argument("--features", default=str(FEATURES_PATH), help="Feature maps JSON from step 02")
     parser.add_argument("--output", default=str(EVAL_RESULT_PATH), help="Where to write the result JSON")
     parser.add_argument("--k-values", type=int, nargs="+", default=[5, 10], help="K cutoffs for KNN metrics")
     parser.add_argument(
         "--no-labels",
         action="store_true",
-        help="Skip ground-truth masks entirely for a near-instant, unsupervised-metrics-only result",
+        help="Skip ground-truth masks entirely for an unsupervised-metrics-only result",
     )
     args = parser.parse_args()
 
@@ -48,13 +55,21 @@ def main() -> None:
     images = payload_source["images"]
 
     result = run_dpt_evaluation(dataset_dir, images, k_values=args.k_values, with_labels=not args.no_labels)
-    print_result(result)
 
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(result, indent=2))
+
+    # Terminate agrieval's k-NN progress bar so it cannot collide with the summary.
+    print(file=sys.stderr)
+    print_result(result)
     print(f"\nFull result written to {output_path}")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except FileNotFoundError as err:
+        sys.exit(f"Error: {err}\nRun `python examples/dpt/02_generate_features.py` first.")
+    except (RuntimeError, ValueError) as err:
+        sys.exit(f"Error: {err}")

@@ -13,7 +13,10 @@ tiling scheme is what builds the patch grid — every value in it is a
 genuine embedding from the real API.
 
 Each tile is a separate ``embeddings.create`` call, so total API calls scale
-as ``num_samples * grid_height * grid_width`` — keep the grid modest.
+as ``num_samples * grid_height * grid_width``: 2 x 8 x 8 = 128 by default.
+Grids coarser than 8x8 are cheaper but leave every patch resolving to
+``background`` on most clusters, which silently disables every label-aware
+metric in ``03_run_eval.py``.
 
 Requires ``PAI_EMBEDDINGS_API_KEY`` and ``PAI_EMBEDDINGS_BASE_URL`` — copy
 ``.env.example`` to ``.env`` and fill them in.
@@ -25,10 +28,14 @@ Run from the project root (after ``01_sample_cluster.py``)::
 
 import argparse
 import json
+import sys
 from pathlib import Path
+
+from openai import AuthenticationError
 
 from precisionai.agriemb import build_client, embed_patch_tokens
 from precisionai.agriemb.config import DEFAULT_MODEL
+from precisionai.agriemb.dpt import DEFAULT_GRID_SIZE
 from precisionai.agristress.utils import AgriStressDataset
 
 MANIFEST_PATH = Path("data/dpt_sample_manifest.json")
@@ -37,11 +44,14 @@ FEATURES_PATH = Path("data/dpt_features.json")
 
 def main() -> None:
     """Tile sampled images, embed every tile, and write the feature maps to a JSON file."""
-    parser = argparse.ArgumentParser(description="Build patch-token feature maps for sampled images")
+    parser = argparse.ArgumentParser(
+        description="Build patch-token feature maps for sampled images",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
     parser.add_argument("--manifest", default=str(MANIFEST_PATH), help="Sample manifest from step 01")
     parser.add_argument("--output", default=str(FEATURES_PATH), help="Where to write the feature maps JSON")
-    parser.add_argument("--grid-height", type=int, default=4, help="Patch grid height (H), in tiles")
-    parser.add_argument("--grid-width", type=int, default=4, help="Patch grid width (W), in tiles")
+    parser.add_argument("--grid-height", type=int, default=DEFAULT_GRID_SIZE[0], help="Patch grid height (H), in tiles")
+    parser.add_argument("--grid-width", type=int, default=DEFAULT_GRID_SIZE[1], help="Patch grid width (W), in tiles")
     parser.add_argument("--model", default=DEFAULT_MODEL, help="Public model id to request")
     args = parser.parse_args()
 
@@ -61,9 +71,18 @@ def main() -> None:
     output_path.write_text(json.dumps({"dataset_dir": str(dataset_dir), "images": images}))
 
     n_tiles = len(stems) * args.grid_height * args.grid_width
-    print(f"Embedded {n_tiles} tiles across {len(images)} images into [H={args.grid_height}, W={args.grid_width}]")
-    print(f"feature maps, written to {output_path}")
+    print(
+        f"Embedded {n_tiles} tiles across {len(images)} images into "
+        f"[H={args.grid_height}, W={args.grid_width}] feature maps, written to {output_path}"
+    )
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except FileNotFoundError as err:
+        sys.exit(f"Error: {err}\nRun `python examples/dpt/01_sample_cluster.py` first.")
+    except AuthenticationError:
+        sys.exit("Error: the PAI embedding API rejected PAI_EMBEDDINGS_API_KEY. Check .env against .env.example.")
+    except (ConnectionError, RuntimeError, ValueError) as err:
+        sys.exit(f"Error: {err}")

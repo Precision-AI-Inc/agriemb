@@ -26,14 +26,45 @@ jobs:
       - name: Build sdist and wheel
         run: python -m build
 
-      - name: Check version matches tag
+      # Inspect the artifact that is actually being released. Reading the
+      # version from `importlib.metadata` in the build checkout would instead
+      # pick up the stray `*.egg-info/` that `python -m build` leaves in the
+      # working directory, which passes even when `dist/` holds something else.
+      - name: Check the built artifacts match the tag
         run: |
           TAG_VERSION="${GITHUB_REF_NAME#v}"
-          BUILT_VERSION=$(python -c "import importlib.metadata as m; print(m.version('precisionai-agriemb'))")
-          if [ "$TAG_VERSION" != "$BUILT_VERSION" ]; then
-            echo "Tag v$TAG_VERSION does not match built version $BUILT_VERSION" >&2
+          python - "$TAG_VERSION" <<'PY'
+          import sys
+          from pathlib import Path
+
+          tag_version = sys.argv[1]
+          artifacts = sorted(Path("dist").glob("*"))
+          if not artifacts:
+              sys.exit("No artifacts were built into dist/")
+
+          expected = {
+              f"precisionai_agriemb-{tag_version}-py3-none-any.whl",
+              f"precisionai_agriemb-{tag_version}.tar.gz",
+          }
+          actual = {path.name for path in artifacts}
+          if actual != expected:
+              sys.exit(f"dist/ holds {sorted(actual)}, expected {sorted(expected)} for tag v{tag_version}")
+          print(f"dist/ matches tag v{tag_version}: {sorted(actual)}")
+          PY
+
+      # A wheel that installs and imports is the real check that the namespace
+      # package was packaged correctly (no `precisionai/__init__.py`).
+      - name: Install the wheel and verify it imports
+        run: |
+          python -m venv /tmp/release-check
+          /tmp/release-check/bin/pip install "dist/precisionai_agriemb-${GITHUB_REF_NAME#v}-py3-none-any.whl"
+          INSTALLED=$(/tmp/release-check/bin/python -c \
+            "import importlib.metadata as m; print(m.version('precisionai-agriemb'))")
+          if [ "${GITHUB_REF_NAME#v}" != "$INSTALLED" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match installed version $INSTALLED" >&2
             exit 1
           fi
+          /tmp/release-check/bin/python -c "import precisionai.agriemb; print(precisionai.agriemb.__all__)"
 
       - uses: actions/upload-artifact@v7
         with:

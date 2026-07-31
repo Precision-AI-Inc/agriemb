@@ -20,10 +20,21 @@ pipeline:
 See ``examples/`` for runnable scripts and a notebook built on this package.
 """
 
-from precisionai.agriemb.dataset import download, sample_cluster, sample_cluster_instances
+from precisionai.agriemb.dataset import (
+    download,
+    sample_cluster,
+    sample_cluster_instances,
+    sample_cluster_with_distractors,
+    verify_dataset,
+)
 from precisionai.agriemb.dpt import embed_patch_tokens, run_dpt_evaluation, tile_image
 from precisionai.agriemb.embeddings import build_client, embed_images, image_array_to_data_uri, image_to_data_uri
-from precisionai.agriemb.evaluate import run_i2i_evaluation, run_p2i_evaluation, run_p2p_evaluation
+from precisionai.agriemb.evaluate import (
+    print_evaluation,
+    run_i2i_evaluation,
+    run_p2i_evaluation,
+    run_p2p_evaluation,
+)
 
 __all__ = [
     "build_client",
@@ -32,11 +43,14 @@ __all__ = [
     "embed_patch_tokens",
     "image_array_to_data_uri",
     "image_to_data_uri",
+    "print_evaluation",
     "run_dpt_evaluation",
     "run_i2i_evaluation",
     "run_p2i_evaluation",
     "run_p2p_evaluation",
     "sample_cluster",
     "sample_cluster_instances",
+    "sample_cluster_with_distractors",
     "tile_image",
+    "verify_dataset",
 ]

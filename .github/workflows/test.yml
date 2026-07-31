@@ -1,0 +1,36 @@
+name: Test
+
+on:
+  workflow_call:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      # `precisionai` is a PEP 420 namespace package shared with the sibling
+      # distributions; a stray `precisionai/__init__.py` makes these imports
+      # fail from the repo root while still passing from anywhere else.
+      - name: Import smoke-test (from the repo root)
+        run: |
+          python -c "
+          import precisionai.agriemb as m
+          from precisionai.agristress.utils import AgriStressDataset
+          from precisionai.agrieval.emb import print_result
+          print('imported', len(m.__all__), 'public names')
+          "
+
+      - name: Run tests
+        run: python -m pytest tests/ -v

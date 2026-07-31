@@ -8,9 +8,14 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   pre-commit:
-    if: github.event_name == 'pull_request'
     uses: ./.github/workflows/pre-commit.yml
+
+  test:
+    uses: ./.github/workflows/test.yml
+
+  docs:
+    uses: ./.github/workflows/docs.yml

@@ -16,6 +16,7 @@ is the only synthetic part, not the features themselves. See
 ``examples/dpt/`` for runnable scripts.
 """
 
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +26,8 @@ from PIL import Image
 from precisionai.agriemb.config import DEFAULT_MODEL
 from precisionai.agriemb.embeddings import EmbeddingsClient, embed_images
 from precisionai.agrieval.dpt import run_dpt_image_eval
+
+DEFAULT_GRID_SIZE = (8, 8)
 
 
 def tile_image(path: Path, grid_size: tuple[int, int]) -> dict[str, Image.Image]:
@@ -58,7 +61,7 @@ def tile_image(path: Path, grid_size: tuple[int, int]) -> dict[str, Image.Image]
 def embed_patch_tokens(
     client: EmbeddingsClient,
     paths: dict[str, Path],
-    grid_size: tuple[int, int] = (4, 4),
+    grid_size: tuple[int, int] = DEFAULT_GRID_SIZE,
     model: str = DEFAULT_MODEL,
 ) -> dict[str, list[Any]]:
     """Build per-patch feature maps by tiling images and embedding every tile via the PAI embedding API.
@@ -79,7 +82,10 @@ def embed_patch_tokens(
     grid_size : tuple[int, int]
         Patch grid ``(height, width)`` to tile each image into. Each tile is
         one ``embeddings.create`` call, so total API calls scale as
-        ``len(paths) * grid_h * grid_w`` — keep this modest.
+        ``len(paths) * grid_h * grid_w`` — keep this modest. Grids coarser
+        than the 8x8 default are cheaper but leave every patch resolving to
+        ``background`` on most clusters, which silently disables every
+        label-aware metric in :func:`run_dpt_evaluation`.
     model : str
         Public model id to request.
 
@@ -121,10 +127,10 @@ def run_dpt_evaluation(
 
     Validating a mask requires decoding it at its full resolution (several
     megapixels for AgriStress-500) before it's downsampled to the patch
-    grid, which costs on the order of a minute per image. Pass
-    ``with_labels=False`` to skip masks entirely and get only the
-    unsupervised patch-geometry metrics, which run in a fraction of a
-    second regardless of dataset size.
+    grid, which costs roughly 15 s per image. Pass ``with_labels=False`` to
+    skip masks entirely and get only the unsupervised patch-geometry
+    metrics. Measured over two AgriStress-500 images on an 8x8 grid: 34 s
+    label-aware, 4 s unsupervised-only.
 
     Parameters
     ----------
@@ -139,7 +145,7 @@ def run_dpt_evaluation(
     with_labels : bool
         Whether to pair *images* with the dataset's ground-truth masks and
         class map for label-aware metrics. ``False`` skips masks entirely
-        for a near-instant, unsupervised-metrics-only result.
+        for a much faster, unsupervised-metrics-only result.
 
     Returns
     -------
@@ -148,9 +154,21 @@ def run_dpt_evaluation(
         ``print_result`` or JSON serialization.
     """
     dataset_root = Path(dataset_dir)
-    return run_dpt_image_eval(
+    result = run_dpt_image_eval(
         images=images,
         k_values=k_values,
         masks_dir=dataset_root / "masks" if with_labels else None,
         classes_path=dataset_root / "class_map.json" if with_labels else None,
     )
+
+    classes = result.get("classes") or []
+    if with_labels and len(classes) < 2:
+        warnings.warn(
+            f"Every patch resolved to a single class ({classes or 'none'}), so silhouette, "
+            f"calinski_harabasz, ari, nmi and pc1_auroc were all skipped and the k-NN purity "
+            f"figures are trivially 1.0000. The patch grid is too coarse for these masks, or the "
+            f"sampled images are near-uniform. Use a finer grid, or sample a cluster whose masks "
+            f"carry more foreground.",
+            stacklevel=2,
+        )
+    return result
