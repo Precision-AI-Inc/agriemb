@@ -52,13 +52,16 @@ If a vulnerability is confirmed, we will:
 
 1. Assess severity and the range of affected versions
 2. Prepare and test a fix
-3. Release a patched version through PyPI
+3. Tag and publish a patched version as a [GitHub Release](https://github.com/Precision-AI-Inc/agriemb/releases)
 4. Publish an advisory or release note as appropriate
 
 ## Security Updates
 
-Security fixes are distributed through normal package channels. Upgrade with:
+This package is not published to PyPI. Security fixes are distributed as tagged
+[GitHub Releases](https://github.com/Precision-AI-Inc/agriemb/releases). Upgrade by pulling the latest
+tag and reinstalling:
 
 ```bash
-pip install --upgrade precisionai-agriemb
+git pull
+pip install -e ".[dev]"
 ```

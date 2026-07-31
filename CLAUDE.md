@@ -22,11 +22,12 @@ service.
 ```
 precisionai/agriemb/
   config.py      # env-var configuration (API key/base URL, dataset dir, model, batch size)
-  dataset.py      # download() + sample_cluster() — built on agristress-utils
-  embeddings.py    # build_client() + embed_images() — the PAI embedding API (openai SDK)
-  evaluate.py      # run_i2i_evaluation() — wires agristress-utils payloads into agrieval
+  dataset.py     # download(), sample_cluster(), sample_cluster_instances() — built on agristress-utils
+  embeddings.py  # build_client() + embed_images() — the PAI embedding API (openai SDK)
+  evaluate.py    # run_i2i_evaluation(), run_p2i_evaluation(), run_p2p_evaluation() — wire agristress-utils payloads into agrieval
+  dpt.py         # tile_image(), embed_patch_tokens(), run_dpt_evaluation() — Dense Patch Token feature maps + evaluation (agrieval)
 docs/            # Sphinx (HTML + LaTeX/PDF)
-examples/        # standalone runnable scripts + a notebook, built on precisionai.agriemb
+examples/        # standalone runnable scripts + notebooks, one scenario dir per retrieval task, built on precisionai.agriemb
 ```
 
 `precisionai` is a fixed, namespace-only top-level package (no logic, just an SPDX header) shared by every PAI Python project — it is what makes `precisionai.<namespace>.*` imports consistent across the org.
@@ -206,7 +207,7 @@ MANIFEST.in                 # sdist packaging — include docs/license/changelog
   workflows/
     ci.yml                   # dispatches to pre-commit.yml
     pre-commit.yml
-    release.yml               # tag push → build, PyPI publish, GitHub Release
+    release.yml               # tag push → build, GitHub Release
 ```
 
 These are not optional extras — treat them as part of the standard layout when auditing a project against this document.
@@ -215,7 +216,7 @@ These are not optional extras — treat them as part of the standard layout when
 
 - Versions are **never hardcoded** — `setuptools-scm` derives the package version from the current git tag (see the `pyproject.toml` block above). Tag with `vX.Y.Z`.
 - Update `CHANGELOG.md` under `[Unreleased]` as you go; move those entries to a new `## [X.Y.Z] - YYYY-MM-DD` section when cutting a release.
-- Pushing a `v*.*.*` tag triggers `.github/workflows/release.yml`: builds the sdist/wheel, verifies the built version matches the tag, publishes to PyPI via trusted publishing (`id-token: write`, no stored API tokens), and creates a GitHub Release with generated notes.
+- Pushing a `v*.*.*` tag triggers `.github/workflows/release.yml`: builds the sdist/wheel, verifies the built version matches the tag, and creates a GitHub Release (named after the tag, e.g. `v1.0.0`) with the built artifacts attached and generated release notes. This repo is not published to PyPI.
 - CI checkout steps that build from git history (release builds, docs version detection) must use `fetch-depth: 0` — a shallow checkout has no tags for `setuptools-scm` or `git describe` to find.
 
 ---

@@ -1,7 +1,7 @@
-PAI AgriEmb
-===========
+Precision AI AgriEmb
+=====================
 
-Welcome to the **PAI AgriEmb** documentation.
+Welcome to the **Precision AI AgriEmb** documentation.
 
 - The **Getting started** chapter is the project README: installation, configuration, package usage, and example scripts.
 - The **Module Reference** chapter documents the full ``precisionai.agriemb`` API — configuration, dataset, embeddings, evaluation, and Dense Patch Tokens.

@@ -5,9 +5,10 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "precisionai-agriemb"
 dynamic = ["version"]
-description = "Examples connecting parts of the Precision AI embedding public release — dataset, embeddings API, and evaluation."
+description = "Open Source Examples for Precision AI Embedding Public Release"
 readme = "README.md"
-license = { file = "LICENSE.md" }
+license = "Apache-2.0"
+license-files = ["LICENSE.md"]
 authors = [{ name = "Precision AI", email = "michael@precision.ai" }]
 maintainers = [{ name = "Precision AI", email = "michael@precision.ai" }]
 requires-python = ">=3.10"
@@ -21,7 +22,6 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
@@ -35,6 +35,8 @@ dependencies = [
     "precisionai-agrieval>=1.0",
     "openai>=1.0",
     "python-dotenv>=1.0",
+    "numpy>=1.24",
+    "pillow>=10.0",
 ]
 
 [project.optional-dependencies]

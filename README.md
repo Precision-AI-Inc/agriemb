@@ -2,7 +2,7 @@
   <img src="docs/assets/logo.png" alt="Precision AI Logo" width="120"/>
 </p>
 
-# PAI AgriEmb
+# Precision AI AgriEmb
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE.md)
 
@@ -18,9 +18,9 @@ This repo unifies three sibling projects into one pipeline:
 
 | Project | Role | Package |
 |---|---|---|
-| [`agristress-utils`](https://github.com/Precision-AI-Inc/agristress-utils) | Dataset download, cluster enumeration, and payload assembly | `precisionai-agristress-utils` |
 | [Precision AI Embeddings](https://embeddings.precision.ai/) | Hosted image embedding API (OpenAI SDK-compatible) | consumed via the `openai` SDK |
 | [`agrieval`](https://github.com/Precision-AI-Inc/agrieval) | Embedding, Segmentation, and Dense Patch Token evaluation | `precisionai-agrieval` |
+| [`agristress-utils`](https://github.com/Precision-AI-Inc/agristress-utils) | Dataset download, cluster enumeration, and payload assembly | `precisionai-agristress-utils` |
 
 Coding standards, naming conventions, and tooling configuration are governed by
 [CLAUDE.md](CLAUDE.md).

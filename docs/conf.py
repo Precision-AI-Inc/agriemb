@@ -47,7 +47,7 @@ print("Version: ", version)
 print("Release: ", release)
 
 # -- General configuration ----------------------------------------------------
-project = "PAI AgriEmb"
+project = "Precision AI AgriEmb"
 copyright = "Precision AI"
 author = "Precision AI"
 
@@ -69,8 +69,15 @@ source_suffix = {
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
-# Avoid "more than one target found" for re-exported names.
-suppress_warnings = ["ref.python"]
+# Avoid "more than one target found" for re-exported names, and silence MyST
+# cross-reference warnings for the copied README's relative links to repo files
+# outside docs/ (LICENSE.md, CLAUDE.md, examples/, etc.) that are never part of
+# the Sphinx build tree and so can never resolve as internal xref targets.
+suppress_warnings = ["ref.python", "myst.xref_missing"]
+
+# Generate anchor slugs for headings up to h3 so the README's in-page links
+# (e.g. "#dense-patch-token-dpt-evaluation") resolve within the Sphinx build.
+myst_heading_anchors = 3
 
 # Napoleon settings for NumPy-style docstrings.
 napoleon_include_init_with_doc = True
@@ -86,7 +93,7 @@ latex_documents = [
     (
         "index",
         "documentation.tex",
-        "PAI AgriEmb",
+        "Precision AI AgriEmb",
         author,
         "manual",
         True,
@@ -99,9 +106,10 @@ latex_additional_files = ["assets/logo.png"] if os.path.isfile(_logo_path) else 
 _logo_latex = "logo" if latex_additional_files else ""
 
 _header_right = (
-    r"\raisebox{-0.2\height}{\includegraphics[height=0.45cm]{%s.png}}\quad PAI AgriEmb --- %s" % (_logo_latex, version)
+    r"\raisebox{-0.2\height}{\includegraphics[height=0.45cm]{%s.png}}\quad Precision AI AgriEmb --- %s"
+    % (_logo_latex, version)
     if _logo_latex
-    else "PAI AgriEmb --- %s" % version
+    else "Precision AI AgriEmb --- %s" % version
 )
 
 _latex_preamble = r"""
