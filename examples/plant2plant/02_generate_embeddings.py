@@ -18,7 +18,10 @@ Run from the project root (after ``01_sample_cluster_instances.py``)::
 
 import argparse
 import json
+import sys
 from pathlib import Path
+
+from openai import APIError, AuthenticationError
 
 from precisionai.agriemb import build_client, embed_images
 from precisionai.agriemb.config import DEFAULT_MODEL
@@ -30,7 +33,10 @@ EMBEDDINGS_PATH = Path("data/plant2plant_embeddings.json")
 
 def main() -> None:
     """Embed the sampled instance crops and write the normalized embeddings."""
-    parser = argparse.ArgumentParser(description="Embed sampled instance crops via the PAI embedding API")
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        description="Embed sampled instance crops via the PAI embedding API",
+    )
     parser.add_argument("--manifest", default=str(MANIFEST_PATH), help="Sample manifest from step 01")
     parser.add_argument("--output", default=str(EMBEDDINGS_PATH), help="Where to write the embeddings JSON")
     parser.add_argument("--model", default=DEFAULT_MODEL, help="Public model id to request")
@@ -56,4 +62,13 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except FileNotFoundError as err:
+        sys.exit(f"Error: {err}\nRun `python examples/plant2plant/01_sample_cluster_instances.py` first.")
+    except AuthenticationError:
+        sys.exit("Error: the PAI embedding API rejected PAI_EMBEDDINGS_API_KEY. Check .env against .env.example.")
+    except APIError as err:
+        sys.exit(f"Error: the PAI embedding API call failed ({err}). Wait a moment and re-run this script.")
+    except (ConnectionError, RuntimeError, ValueError) as err:
+        sys.exit(f"Error: {err}")

@@ -8,8 +8,23 @@ permissions:
   contents: read
 
 jobs:
+  # A tag can be pushed from any commit, including one CI never saw green, so
+  # the release path runs the same checks `ci.yml` does before anything is
+  # built or published.
+  pre-commit:
+    uses: ./.github/workflows/pre-commit.yml
+
+  test:
+    uses: ./.github/workflows/test.yml
+
+  docs:
+    uses: ./.github/workflows/docs.yml
+
   build:
+    needs: [pre-commit, test, docs]
     runs-on: ubuntu-latest
+    outputs:
+      prerelease: ${{ steps.artifacts.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -20,20 +35,74 @@ jobs:
           python-version: "3.10"
           cache: pip
 
+      # `packaging` is declared explicitly rather than relied on as a
+      # transitive dependency of `build`: the artifact check below imports it.
       - name: Install build tooling
-        run: pip install build
+        run: pip install build packaging
 
       - name: Build sdist and wheel
         run: python -m build
 
-      - name: Check version matches tag
+      # Inspect the artifact that is actually being released. Reading the
+      # version from `importlib.metadata` in the build checkout would instead
+      # pick up the stray `*.egg-info/` that `python -m build` leaves in the
+      # working directory, which passes even when `dist/` holds something else.
+      # The tag is normalized to its PEP 440 form before the expected filenames
+      # are built: setuptools writes the normalized version into every artifact
+      # name, so comparing raw tag text would reject `v1.0.0-rc1` and
+      # `v1.0.0.rc1`, both of which are legitimate spellings of `1.0.0rc1`. The
+      # same normalized version decides whether this is a pre-release, so the
+      # release below cannot disagree with the artifact it publishes.
+      - name: Check the built artifacts match the tag
+        id: artifacts
         run: |
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
-          BUILT_VERSION=$(python -c "import importlib.metadata as m; print(m.version('precisionai-agriemb'))")
-          if [ "$TAG_VERSION" != "$BUILT_VERSION" ]; then
-            echo "Tag v$TAG_VERSION does not match built version $BUILT_VERSION" >&2
+          python - "$GITHUB_REF_NAME" <<'PY'
+          import os
+          import sys
+          from pathlib import Path
+
+          from packaging.version import InvalidVersion, Version
+
+          tag = sys.argv[1]
+          try:
+              tag_version = Version(tag.removeprefix("v"))
+          except InvalidVersion:
+              sys.exit(f"Tag {tag} is not a PEP 440 version, so no built artifact can be named after it")
+
+          artifacts = sorted(Path("dist").glob("*"))
+          if not artifacts:
+              sys.exit("No artifacts were built into dist/")
+
+          wheel = f"precisionai_agriemb-{tag_version}-py3-none-any.whl"
+          expected = {wheel, f"precisionai_agriemb-{tag_version}.tar.gz"}
+          actual = {path.name for path in artifacts}
+          if actual != expected:
+              sys.exit(f"dist/ holds {sorted(actual)}, expected {sorted(expected)} for tag {tag}")
+
+          print(f"dist/ matches tag {tag}: {sorted(actual)}")
+          prerelease = tag_version.is_prerelease or tag_version.is_devrelease
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as handle:
+              handle.write(f"wheel=dist/{wheel}\n")
+              handle.write(f"version={tag_version}\n")
+              handle.write(f"prerelease={str(prerelease).lower()}\n")
+          PY
+
+      # A wheel that installs and imports is the real check that the namespace
+      # package was packaged correctly (no `precisionai/__init__.py`).
+      - name: Install the wheel and verify it imports
+        env:
+          WHEEL: ${{ steps.artifacts.outputs.wheel }}
+          EXPECTED_VERSION: ${{ steps.artifacts.outputs.version }}
+        run: |
+          python -m venv /tmp/release-check
+          /tmp/release-check/bin/pip install "$WHEEL"
+          INSTALLED=$(/tmp/release-check/bin/python -c \
+            "import importlib.metadata as m; print(m.version('precisionai-agriemb'))")
+          if [ "$EXPECTED_VERSION" != "$INSTALLED" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match installed version $INSTALLED" >&2
             exit 1
           fi
+          /tmp/release-check/bin/python -c "import precisionai.agriemb; print(precisionai.agriemb.__all__)"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -51,18 +120,9 @@ jobs:
           name: dist
           path: dist/
 
-      - name: Detect pre-release
-        id: prerelease
-        run: |
-          if [[ "${GITHUB_REF_NAME}" =~ [.]?(dev|a|b|rc)[0-9]+$ ]]; then
-            echo "value=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "value=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - uses: softprops/action-gh-release@v3
         with:
           name: ${{ github.ref_name }}
           files: dist/*
           generate_release_notes: true
-          prerelease: ${{ steps.prerelease.outputs.value }}
+          prerelease: ${{ needs.build.outputs.prerelease }}

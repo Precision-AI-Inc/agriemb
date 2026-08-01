@@ -11,6 +11,7 @@ venv.bak/
 
 # Example script downloads/output (dataset, embeddings, evaluation results)
 examples/data/
+/data/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

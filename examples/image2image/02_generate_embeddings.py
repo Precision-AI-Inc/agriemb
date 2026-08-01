@@ -1,7 +1,7 @@
 # Copyright 2026 Precision AI
 # SPDX-License-Identifier: Apache-2.0
 
-"""Embed a sampled cluster of images via the PAI embedding API.
+"""Embed a sampled cluster of images, plus its distractors, via the PAI embedding API.
 
 Reads the manifest produced by ``01_sample_cluster.py``, embeds each image
 through the OpenAI-compatible PAI embedding API
@@ -18,7 +18,10 @@ Run from the project root (after ``01_sample_cluster.py``)::
 
 import argparse
 import json
+import sys
 from pathlib import Path
+
+from openai import APIError, AuthenticationError
 
 from precisionai.agriemb import build_client, embed_images
 from precisionai.agriemb.config import DEFAULT_MODEL
@@ -29,8 +32,11 @@ EMBEDDINGS_PATH = Path("data/image2image_embeddings.json")
 
 
 def main() -> None:
-    """Embed the sampled cluster and write the normalized embeddings."""
-    parser = argparse.ArgumentParser(description="Embed sampled images via the PAI embedding API")
+    """Embed the sampled cluster and its distractors, and write the normalized embeddings."""
+    parser = argparse.ArgumentParser(
+        description="Embed sampled images via the PAI embedding API",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
     parser.add_argument("--manifest", default=str(MANIFEST_PATH), help="Sample manifest from step 01")
     parser.add_argument("--output", default=str(EMBEDDINGS_PATH), help="Where to write the embeddings JSON")
     parser.add_argument("--model", default=DEFAULT_MODEL, help="Public model id to request")
@@ -38,7 +44,7 @@ def main() -> None:
 
     manifest = json.loads(Path(args.manifest).read_text())
     dataset_dir = Path(manifest["dataset_dir"])
-    image_ids = manifest["image_ids"]
+    image_ids = manifest["image_ids"] + manifest.get("distractor_ids", [])
 
     dataset = AgriStressDataset(dataset_dir)
     paths = dataset.resolve_paths(image_ids)
@@ -56,4 +62,13 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except FileNotFoundError as err:
+        sys.exit(f"Error: {err}\nRun `python examples/image2image/01_sample_cluster.py` first.")
+    except AuthenticationError:
+        sys.exit("Error: the PAI embedding API rejected PAI_EMBEDDINGS_API_KEY. Check .env against .env.example.")
+    except APIError as err:
+        sys.exit(f"Error: the PAI embedding API call failed ({err}). Wait a moment and re-run this script.")
+    except (ConnectionError, RuntimeError, ValueError) as err:
+        sys.exit(f"Error: {err}")

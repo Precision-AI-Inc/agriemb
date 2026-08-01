@@ -73,7 +73,11 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # cross-reference warnings for the copied README's relative links to repo files
 # outside docs/ (LICENSE.md, CLAUDE.md, examples/, etc.) that are never part of
 # the Sphinx build tree and so can never resolve as internal xref targets.
-suppress_warnings = ["ref.python", "myst.xref_missing"]
+# `sphinx_autodoc_typehints.guarded_import` mutes a third-party guarded type
+# import: Pillow type-checks against IPython, which this docs build deliberately
+# does not install. Muting only that class keeps `-W --keep-going` meaningful for
+# warnings raised by this package's own docstrings.
+suppress_warnings = ["ref.python", "myst.xref_missing", "sphinx_autodoc_typehints.guarded_import"]
 
 # Generate anchor slugs for headings up to h3 so the README's in-page links
 # (e.g. "#dense-patch-token-dpt-evaluation") resolve within the Sphinx build.

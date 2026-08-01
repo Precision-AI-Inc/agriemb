@@ -12,7 +12,7 @@ load_dotenv()  # walks up from the cwd to find a `.env` file (see .env.example)
 
 # Anchored to this repo's examples/ directory rather than the caller's cwd, so
 # every script and notebook shares one downloaded copy of AgriStress-500
-# (~13 GB) regardless of which directory it's launched from — a cwd-relative
+# (~12 GB) regardless of which directory it's launched from — a cwd-relative
 # default would let each scenario subdirectory trigger its own fresh download.
 _EXAMPLES_DIR = Path(__file__).resolve().parents[2] / "examples"
 DEFAULT_DATASET_DIR = _EXAMPLES_DIR / "data" / "agristress"
