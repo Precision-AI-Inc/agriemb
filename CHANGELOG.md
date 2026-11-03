@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-03
+
+### Fixed
+
+- `LICENSE.md` now carries the exact Apache License 2.0 text. The copy inherited from
+  the project template had several clauses reworded or cut short, so GitHub could not
+  identify the license, and the package shipped a license that was not quite Apache 2.0.
+
+## [1.0.0] - 2026-07-31
+
 ### Added
 
 - `precisionai.agriemb` package: `dataset` (download + cluster/instance sampling),
@@ -38,9 +48,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `LICENSE.md` now carries the exact Apache License 2.0 text. The copy inherited from
-  the project template had several clauses reworded or cut short, so GitHub could not
-  identify the license, and the package shipped a license that was not quite Apache 2.0.
 - `DEFAULT_DATASET_DIR` is now anchored to this repo's `examples/` directory instead of
   the caller's current working directory. Previously, running a script or notebook from
   within its own scenario subdirectory (the default for Jupyter/VS Code notebooks) could
@@ -109,4 +116,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   defaults; the DPT tile-count summary is no longer split across two `print` calls; and
   the k-NN progress bar is terminated before the evaluation summary.
 
-[Unreleased]: https://github.com/Precision-AI-Inc/agriemb/commits/main
+[Unreleased]: https://github.com/Precision-AI-Inc/agriemb/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/Precision-AI-Inc/agriemb/compare/v1.0.0...v1.0.1
+[1.0.0]: https://github.com/Precision-AI-Inc/agriemb/releases/tag/v1.0.0
