@@ -38,6 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `LICENSE.md` now carries the exact Apache License 2.0 text. The copy inherited from
+  the project template had several clauses reworded or cut short, so GitHub could not
+  identify the license, and the package shipped a license that was not quite Apache 2.0.
 - `DEFAULT_DATASET_DIR` is now anchored to this repo's `examples/` directory instead of
   the caller's current working directory. Previously, running a script or notebook from
   within its own scenario subdirectory (the default for Jupyter/VS Code notebooks) could
